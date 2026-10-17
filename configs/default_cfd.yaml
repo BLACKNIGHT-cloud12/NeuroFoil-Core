@@ -1,0 +1,67 @@
+# Baseline Configuration for Phase I & Phase II Conventional CFD Pipeline
+project:
+  name: "ml-aerodynamic-design-platform"
+  random_seed: 42
+
+wsl_environment:
+  distro: "Ubuntu-24.04"
+  openfoam_bashrc: "/usr/lib/openfoam/openfoam2606/etc/bashrc"
+  max_ram_gb: 10.0
+  max_concurrent_jobs: 1
+  case_timeout_seconds: 600
+
+geometry:
+  family: "naca4"
+  chord_m: 1.0
+  num_points_per_surface: 161
+  closed_trailing_edge: true
+  min_thickness_ratio: 0.06
+  max_thickness_ratio: 0.18
+  max_camber_ratio: 0.06
+
+operating_conditions:
+  flow_regime: "incompressible_steady_turbulent_rans"
+  freestream_velocity_m_s: 1.0
+  reynolds_min: 1000000.0
+  reynolds_max: 6000000.0
+  alpha_deg_min: -4.0
+  alpha_deg_max: 12.0
+  turbulence_intensity: 0.001     # 0.1% matching low-turbulence wind tunnel (Ladson 1988)
+  eddy_viscosity_ratio: 0.1       # nu_t / nu_inf
+
+mesh:
+  topology: "2d_structured_c_grid"
+  farfield_radius_chords: 15.0
+  wake_length_chords: 15.0
+  span_thickness_m: 0.1
+  first_cell_height_m: 1.5e-5
+  default_level: "medium"
+  levels:
+    coarse:
+      n_airfoil_side: 60
+      n_wake: 40
+      n_normal: 45
+    medium:
+      n_airfoil_side: 85
+      n_wake: 56
+      n_normal: 64
+    fine:
+      n_airfoil_side: 120
+      n_wake: 80
+      n_normal: 90
+
+solver:
+  executable: "simpleFoam"
+  turbulence_model: "kOmegaSST"
+  max_iterations: 1500
+  write_interval: 1500
+  purge_write: 1
+  residual_targets:
+    p: 1.0e-5
+    U: 1.0e-6
+    k: 1.0e-6
+    omega: 1.0e-6
+  convergence_window: 100
+  cl_std_tol: 5.0e-4
+  cd_std_tol: 2.0e-4
+  cm_std_tol: 5.0e-4
