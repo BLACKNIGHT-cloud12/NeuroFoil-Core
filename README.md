@@ -195,8 +195,8 @@ ml-aerodynamic-design-platform/
 Clone the repository and install the lightweight runtime dependencies:
 
 ```bash
-git clone https://github.com/BLACKNIGHT-cloud12/ml-aerodynamic-design-platform.git
-cd ml-aerodynamic-design-platform
+git clone https://github.com/BLACKNIGHT-cloud12/NeuroFoil-Core.git
+cd NeuroFoil-Core
 
 # Install core dependencies
 pip install -e .
