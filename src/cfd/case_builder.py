@@ -432,6 +432,13 @@ solvers
         relTol          0.01;
         smoother        GaussSeidel;
     }}
+    Phi
+    {{
+        solver          GAMG;
+        tolerance       1e-07;
+        relTol          0.01;
+        smoother        GaussSeidel;
+    }}
     "(U|k|omega)"
     {{
         solver          smoothSolver;
@@ -455,13 +462,13 @@ relaxationFactors
 {{
     fields
     {{
-        p               0.3;
+        p               0.1;
     }}
     equations
     {{
-        U               0.7;
-        k               0.7;
-        omega           0.7;
+        U               0.3;
+        k               0.5;
+        omega           0.5;
     }}
 }}
 """

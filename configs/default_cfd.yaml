@@ -53,8 +53,8 @@ mesh:
 solver:
   executable: "simpleFoam"
   turbulence_model: "kOmegaSST"
-  max_iterations: 1500
-  write_interval: 1500
+  max_iterations: 3000
+  write_interval: 3000
   purge_write: 1
   residual_targets:
     p: 1.0e-5

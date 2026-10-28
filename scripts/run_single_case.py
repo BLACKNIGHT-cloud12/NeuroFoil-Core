@@ -90,6 +90,7 @@ def main() -> None:
             f"cp -r '{wsl_case}/0' '{wsl_case}/constant' '{wsl_case}/system' '{tmp_work}/' && "
             f"cd '{tmp_work}' && "
             f"blockMesh > log.blockMesh 2>&1 && "
+            f"potentialFoam > log.potentialFoam 2>&1 && "
             f"simpleFoam > log.simpleFoam 2>&1 && "
             f"mkdir -p '{wsl_case}/postProcessing' && "
             f"cp -r postProcessing '{wsl_case}/' && "

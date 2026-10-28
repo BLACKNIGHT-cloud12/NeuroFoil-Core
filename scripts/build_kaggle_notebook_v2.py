@@ -321,8 +321,11 @@ q_cd = float(np.quantile(res_val[:, 1], q_level))
 q_cm = float(np.quantile(res_val[:, 2], q_level))
 
 # Per-chord-point conformal quantiles for both surfaces
-res_field_val = np.abs(y_fields[is_val & has_cp] -
-                       field_g.inverse_transform(field_model(torch.tensor(X[is_val & has_cp]).to(device)).cpu().numpy()))
+with torch.no_grad():
+    val_field_pred = field_g.inverse_transform(
+        field_model(torch.tensor(X[is_val & has_cp]).to(device)).cpu().numpy()
+    )
+res_field_val = np.abs(y_fields[is_val & has_cp] - val_field_pred)
 q_cp_upper = np.quantile(res_field_val[:, :N_PTS], q_level, axis=0)
 q_cp_lower = np.quantile(res_field_val[:, N_PTS:], q_level, axis=0)
 
