@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.pytest_cache/
+.venv/
+venv/
+dist/
+build/
+
+# CFD raw case directories (keep metadata/summaries, ignore heavy field dumps)
+data/raw_cases/*
+!data/raw_cases/.gitkeep
+*.foam
+*.vtk
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
