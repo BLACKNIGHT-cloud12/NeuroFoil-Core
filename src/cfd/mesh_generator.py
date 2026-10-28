@@ -9,11 +9,10 @@ from pathlib import Path
 from typing import Any
 import math
 import re
-import subprocess
 import time
 import numpy as np
 
-from src.config import windows_to_wsl_path
+from src.config import run_solver_command, windows_to_wsl_path
 from src.geometry.naca import AirfoilGeometry
 
 
@@ -400,14 +399,7 @@ def run_blockmesh_and_checkmesh(
         f"rm -rf '{tmp_work}'"
     )
     t0 = time.perf_counter()
-    proc = subprocess.run(
-        ["wsl", "-d", wsl_distro, "bash", "-c", cmd],
-        stdin=subprocess.DEVNULL,
-        capture_output=True,
-        text=True,
-        timeout=timeout_sec,
-        check=False,
-    )
+    proc = run_solver_command(cmd, wsl_distro=wsl_distro, timeout=timeout_sec)
     elapsed = time.perf_counter() - t0
 
     if proc.returncode != 0:

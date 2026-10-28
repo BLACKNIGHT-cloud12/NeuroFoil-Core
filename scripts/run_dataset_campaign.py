@@ -100,6 +100,8 @@ class Store:
         self.x_grid = x_grid
         self.cp_store = cp_store
         self.lock = threading.Lock()
+        CSV_PATH.parent.mkdir(parents=True, exist_ok=True)
+        RAW_DIR.mkdir(parents=True, exist_ok=True)
 
     def add(self, record: dict, cp: dict[str, np.ndarray] | None, x_grid: np.ndarray | None) -> None:
         with self.lock:

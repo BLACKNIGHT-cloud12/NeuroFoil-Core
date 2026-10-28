@@ -10,7 +10,6 @@ from __future__ import annotations
 
 from pathlib import Path
 import shutil
-import subprocess
 import sys
 import time
 
@@ -19,7 +18,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from src.config import load_config, windows_to_wsl_path
+from src.config import load_config, run_solver_command, windows_to_wsl_path
 from src.geometry.naca import generate_naca4_airfoil
 from src.cfd.mesh_generator import generate_blockmesh_dict, run_blockmesh_and_checkmesh
 from src.cfd.case_builder import OperatingPoint, build_openfoam_case
@@ -100,14 +99,7 @@ def main() -> None:
         )
 
         t0 = time.perf_counter()
-        proc = subprocess.run(
-            ["wsl", "-d", cfg["wsl_environment"]["distro"], "bash", "-c", cmd],
-            stdin=subprocess.DEVNULL,
-            capture_output=True,
-            text=True,
-            timeout=timeout_sec,
-            check=False,
-        )
+        proc = run_solver_command(cmd, wsl_distro=cfg["wsl_environment"]["distro"], timeout=timeout_sec)
         wall_time = time.perf_counter() - t0
 
         if proc.returncode != 0:

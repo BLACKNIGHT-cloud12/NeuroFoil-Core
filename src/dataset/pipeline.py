@@ -13,7 +13,7 @@ from typing import Any, Sequence
 import numpy as np
 import pandas as pd
 
-from src.config import PROJECT_ROOT, load_config, windows_to_wsl_path
+from src.config import PROJECT_ROOT, load_config, run_solver_command, windows_to_wsl_path
 from src.geometry.naca import AirfoilGeometry, generate_naca4_airfoil
 from src.cfd.mesh_generator import generate_blockmesh_dict, run_blockmesh_and_checkmesh
 from src.cfd.case_builder import OperatingPoint, build_openfoam_case
@@ -71,8 +71,7 @@ def run_single_cfd_sample(
     )
     build_openfoam_case(output_case_dir, op, cfg)
 
-    # 4. Execute solver in WSL ramdisk
-    import subprocess
+    # 4. Execute solver in ramdisk (WSL on Windows, native on Linux)
     wsl_case = windows_to_wsl_path(output_case_dir)
     tmp_work = f"/tmp/aero_batch_{output_case_dir.name}"
     openfoam_bashrc = cfg["wsl_environment"]["openfoam_bashrc"]
@@ -92,14 +91,7 @@ def run_single_cfd_sample(
         f"rm -rf '{tmp_work}'"
     )
 
-    proc = subprocess.run(
-        ["wsl", "-d", cfg["wsl_environment"]["distro"], "bash", "-c", cmd],
-        stdin=subprocess.DEVNULL,
-        capture_output=True,
-        text=True,
-        timeout=timeout_sec,
-        check=False,
-    )
+    proc = run_solver_command(cmd, wsl_distro=cfg["wsl_environment"]["distro"], timeout=timeout_sec)
 
     if proc.returncode != 0:
         return {"case_id": sample.case_id, "success": False, "status": "solver_failed"}
