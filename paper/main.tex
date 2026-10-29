@@ -1,0 +1,297 @@
+\documentclass[11pt]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath, amssymb, amsfonts}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage[colorlinks=true, linkcolor=blue, citecolor=blue, urlcolor=blue]{hyperref}
+\usepackage[round]{natbib}
+\usepackage{xcolor}
+
+%TODO marker for pending campaign results
+\newcommand{\TBD}[1]{\textcolor{red}{[TBD: #1]}}
+
+\title{NeuroFoil: An Open Pipeline Coupling Real-OpenFOAM RANS Data with\\
+Calibrated Neural Surrogates for Two-Dimensional Airfoil Design}
+
+\author{%
+  BLACKNIGHT (cloud12)\thanks{Independent researcher. Code and data:
+  \url{https://github.com/BLACKNIGHT-cloud12/NeuroFoil-Core}}%
+}
+\date{October 2026}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Neural surrogates can collapse the cost of aerodynamic design exploration from
+minutes-per-evaluation (RANS CFD) to sub-millisecond inference, but published
+surrogate pipelines frequently entangle three failure modes: training data of
+uncertain provenance, train/test contamination across airfoil geometries, and
+uncertainty estimates that are neither calibrated nor evaluated. We present
+NeuroFoil, an open end-to-end pipeline that addresses all three. A fully
+automated OpenFOAM workflow (steady incompressible k--$\omega$ SST on
+parametric six-block structured C-grids, $y^+ \approx 1$, potential-flow
+initialization) generates a campaign dataset of \TBD{N} simulation records
+spanning \TBD{21} airfoils, four Reynolds numbers ($1$--$6\times10^6$), and six
+angles of attack ($-6^\circ$ to $14^\circ$), with every row carrying its honest
+convergence status. Residual MLP and surface-pressure field-decoder networks are
+trained with \emph{airfoil-grouped} splits so that reported test metrics measure
+extrapolation to unseen geometries rather than memorization, alongside
+random-row interpolation baselines. Epistemic uncertainty is quantified with
+split-conformal calibration whose empirical coverage is measured on held-out
+airfoils, and out-of-distribution queries are flagged by a Mahalanobis guard on
+the training manifold. The trained networks deploy through a pure-NumPy runtime
+($<0.5$\,ms per query, no deep-learning framework required) with a one-click
+OpenFOAM verification loop. Solver settings are verified against classical
+NACA~0012 benchmarks: the computed lift slope ($6.29$\,rad$^{-1}$) matches
+thin-airfoil theory and experimental measurements, and a three-level grid study
+quantifies the production-mesh discretization band.
+\end{abstract}
+
+\section{Introduction}
+\label{sec:intro}
+
+Surrogate-assisted design promises orders-of-magnitude speedups over
+direct CFD evaluation, but the value of a surrogate rests entirely on the
+credibility of its training data and the honesty of its evaluation. Three
+failure modes recur in surrogate-aerodynamics pipelines:
+\begin{enumerate}
+  \item \textbf{Data provenance.} Datasets presented as ``CFD-derived'' are
+  sometimes synthesized from textbook formulas, making downstream accuracy
+  claims circular: the surrogate is evaluated against the same analytic model
+  that generated its training data.
+  \item \textbf{Split contamination.} Parametric airfoil datasets naturally
+  repeat each geometry across many operating points; a random row-wise
+  train/test split therefore places near-duplicates on both sides and
+  overstates generalization.
+  \item \textbf{Uncalibrated uncertainty.} Hand-tuned variance formulas are
+  presented as confidence intervals without any coverage measurement, and
+  out-of-distribution (OOD) detectors are deployed without detection metrics.
+\end{enumerate}
+
+NeuroFoil is built to be auditable against each of these. Its dataset is
+produced by a scripted OpenFOAM campaign whose solver settings are verified
+against classical benchmarks (Section~\ref{sec:verification}); its models are
+trained and reported under airfoil-grouped splits with interpolation baselines
+(Section~\ref{sec:setup}); its intervals are split-conformal with measured
+coverage, and its OOD guard is evaluated on held-out geometries
+(Section~\ref{sec:uq}). Everything --- case dictionaries, mesh generator,
+campaign driver, training notebook, and a framework-free inference runtime ---
+is released under a permissive license.
+
+Our contributions are:
+\begin{itemize}
+  \item an open, reproducible, Windows/Linux-portable RANS data-generation
+  pipeline with verified numerical settings (under-relaxation and
+  potential-flow initialization are shown to be load-bearing);
+  \item a leakage-free evaluation protocol for parametric airfoil surrogates
+  that separates interpolation from shape extrapolation;
+  \item split-conformal uncertainty for scalar coefficients and
+  161-point surface-pressure fields with empirical coverage audit;
+  \item a deployment path that runs the trained network in pure NumPy,
+  enabling framework-free, sub-millisecond inference in engineering tools.
+\end{itemize}
+
+\section{Related Work}
+\label{sec:related}
+
+\textbf{Airfoil parameterization.} The NACA 4-digit family remains the
+canonical testbed for aerodynamic methods \citep{abbott1959}, and the
+Class-Shape Transformation (CST) of \citet{kulfan2008} provides a compact,
+order-expandable representation that we use as surrogate input features.
+
+\textbf{Turbulence modeling.} We adopt the shear-stress-transport
+k--$\omega$ model of \citet{menter1994}, the de-facto industrial standard for
+attached and mildly separated external aerodynamics. OpenFOAM
+\citep{weller1998} supplies the finite-volume solver infrastructure.
+
+\textbf{Experimental benchmarks.} The low-speed NACA~0012 measurements of
+\citet{ladson1988} and the tabulations of \citet{abbott1959} anchor our
+solver-verification study (Section~\ref{sec:verification}).
+
+\textbf{Conformal prediction.} Split conformal prediction
+\citep{papadopoulos2002, vovk2005} yields distribution-free interval estimates
+with finite-sample marginal coverage guarantees under exchangeability, and has
+recently been applied to regression surrogates; we apply it both to scalar
+force coefficients and pointwise to surface-pressure fields.
+
+\textbf{OOD detection.} We use the Mahalanobis-distance score of
+\citet{lee2018} on the training manifold, evaluated against held-out
+geometries rather than merely asserted.
+
+\TBD{Final literature pass: surrogate modeling in aerodynamics
+(mlp/GP/field-prediction literature), conformal applications in engineering
+UQ, and positioned comparison to XFOIL-based datasets.}
+
+\section{Methods}
+\label{sec:methods}
+
+\subsection{Geometry and parameterization}
+Airfoils are generated from the NACA 4-digit equations with the closed
+trailing-edge coefficient $a_4=-0.1036$ and cosine chordwise clustering
+(161 points per surface). Each surface is fitted with a fifth-order Kulfan CST
+Bernstein expansion \citep{kulfan2008} with class exponents
+$N_1=0.5$, $N_2=1.0$; the twelve CST weights, together with $(m, p, t)$,
+form the geometry features of the surrogate. A fixed cosine grid
+$x_i = \tfrac12(1-\cos \beta_i)$, $\beta_i = i\pi/160$, standardizes all
+surface-pressure fields.
+
+\subsection{Automated RANS pipeline}
+The pipeline (OpenFOAM v2606 \citep{weller1998}) builds a parametric six-block
+2D structured C-grid per case: farfield radius 15 chords, wake extension 15
+chords, span 0.1, and a wall-normal first-cell height of
+$4\times10^{-6}$ chords (geometric grading solved in closed form from the
+requested first-cell height), giving $y^+\approx1$ at
+$\mathrm{Re}=6\times10^6$. Boundary patches: fixed-velocity inlet over the
+upstream arc and lateral boundaries, fixed-pressure outlet downstream,
+no-slip airfoil wall, empty front/back for the 2D constraint.
+
+The case runs steady incompressible simpleFoam with k--$\omega$ SST
+\citep{menter1994}. Two settings proved load-bearing during verification:
+(i)~\emph{under-relaxation} p=0.1, U=0.3, k/$\omega$=0.5 --- the conventional
+p=0.3/U=0.7 combination produces a sustained force limit cycle (lift
+oscillating by $\mathcal{O}(10^2)$) on these grids; and (ii)~\emph{potential
+flow initialization} via potentialFoam, which removes a large startup
+transient (lift swings of $\mathcal{O}(10^3)$ with uniform initialization) and
+accelerates convergence. Runs proceed to 3000 iterations with residual targets
+p$<10^{-5}$, U,k,$\omega$$<10^{-6}$; convergence is accepted when the
+sliding-window standard deviations of the last 50--100 force-coefficient
+samples satisfy $\sigma_{C_L}<5\times10^{-4}$,
+$\sigma_{C_D}<2\times10^{-4}$, $\sigma_{C_m}<5\times10^{-4}$. Every dataset
+row records its true convergence status; no row is filtered silently.
+
+Freestream turbulence follows low-turbulence wind-tunnel practice
+(intensity 0.1\%, eddy-viscosity ratio 0.1). Surface-pressure fields are
+extracted from the airfoil patch face centroids and resampled onto the 161-point
+cosine grid; force coefficients come from the forceCoeffs function object.
+
+\subsection{Surrogate architectures}
+Two networks are trained (PyTorch \citep{paszke2019}, AdamW, cosine schedule,
+all RNG seeded):
+\begin{itemize}
+  \item \textbf{Scalar surrogate}: a deep residual MLP (128-wide, two residual
+  blocks with batch normalization and GELU, 64-wide head) mapping 17 features
+  (m, p, t, 12 CST weights, $\alpha$, Re) to $(C_L, C_D, C_m)$.
+  \item \textbf{Field decoder}: a plain MLP (128--256--512) mapping the same
+  features to the 322-point surface-pressure vector (upper then lower
+  surface); $\Delta C_p(x)$ follows by subtraction, and integrated
+  $\int_0^1 \Delta C_p\,dx$ provides a physics-consistency check against the
+  predicted $C_L$.
+\end{itemize}
+
+\subsection{Calibrated uncertainty and OOD detection}
+\label{sec:uq}
+\textbf{Split conformal.} The validation airfoils (unseen in training) form a
+calibration set; the conformal quantile is the
+$\lceil (n+1)(1-\alpha)\rceil/n$ quantile of absolute residuals, applied to
+each scalar target and pointwise across the chord for both Cp surfaces. The
+training notebook reports empirical coverage on untouched test airfoils.
+\textbf{Mahalanobis guard.} Following \citet{lee2018}, the score
+$D_M = \sqrt{(\mathbf{x}-\boldsymbol{\mu})^T \boldsymbol{\Sigma}^{-1}
+(\mathbf{x}-\boldsymbol{\mu})}$ is computed on the training manifold
+(ridged covariance); envelope violations in $(m,p,t,\alpha,\mathrm{Re})$ are
+flagged directly. Detection performance on held-out airfoils is reported in
+Section~\ref{sec:results}.
+
+\subsection{Multidisciplinary design optimization}
+An SLSQP loop \citep{kraft1988} maximizes $L/D$ subject to a lift target and
+wingbox structural constraints (front/rear spar depths at 20\%/65\% chord,
+inter-spar fuel-bay area), evaluated from the surrogate in closed form; each
+optimization completes in well under a second on a laptop CPU.
+
+\section{Experimental setup}
+\label{sec:setup}
+
+\textbf{Campaign design.} A Latin hypercube over $(m, p, t)$
+\citep{mckay1979}, discretized to valid NACA codes and anchored with NACA
+0012/2412/4412, yields \TBD{21} airfoils; crossed with
+$\mathrm{Re}\in\{1,2,3,6\}\times10^6$ and
+$\alpha\in\{-6^\circ,-2^\circ,2^\circ,6^\circ,10^\circ,14^\circ\}$ gives
+\TBD{504} cases at the production (medium) mesh. The driver is resume-safe and
+parallel (multiple WSL/native solver instances), and trims solver artifacts
+after extraction.
+
+\textbf{Evaluation protocol.} Airfoil-grouped splits hold out
+$\approx$15\% of geometries each for calibration and test; a random-row split
+is trained identically to quantify the interpolation--extrapolation gap.
+Metrics: $R^2$, RMSE, MAE per scalar target; flattened and per-surface field
+$R^2$; integrated-lift physics consistency; conformal coverage; Mahalanobis
+detection rates on unseen geometries. All figures and tables are regenerated
+by a single script from the released artifacts.
+
+\section{Solver verification}
+\label{sec:verification}
+
+Before campaign production, the pipeline was verified on NACA 0012 at
+$\mathrm{Re}=6\times10^6$ (18{,}048-cell medium mesh):
+
+\begin{table}[h]
+\centering
+\caption{Pipeline verification, NACA 0012, Re $=6\times10^6$.}
+\label{tab:verify}
+\begin{tabular}{lcccc}
+\toprule
+Case & $C_L$ & $C_D$ & $C_{m,c/4}$ & Status \\
+\midrule
+$\alpha=0^\circ$ & $-0.0042$ & 0.00879 & $+0.0008$ & converged \\
+$\alpha=4^\circ$ & $+0.4388$ & 0.00951 & $+0.0024$ & converged
+($\sigma_{C_L}=2.2\times10^{-4}$) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The $\alpha=4^\circ$ result implies a lift slope of $6.29$\,rad$^{-1}$,
+consistent with thin-airfoil theory ($2\pi$) and with the measured NACA 0012
+slope \citep{abbott1959, ladson1988}; the fully-turbulent drag level sits
+above the transitional experimental value, as expected without a transition
+model. The symmetric case returns $C_L\approx0$ and $C_{m}\approx0$ as
+required. A three-level grid study quantifies the production-mesh band:
+
+\begin{table}[h]
+\centering
+\caption{Grid convergence, NACA 0012, $\alpha=4^\circ$, Re $=6\times10^6$.}
+\label{tab:grid}
+\begin{tabular}{lccc}
+\toprule
+Mesh & Cells & $C_L$ & $C_D$ \\
+\midrule
+coarse & 8{,}640 & 0.43133 & 0.010730 \\
+medium (production) & 18{,}048 & 0.43875 & 0.009509 \\
+fine & 36{,}000 & 0.45908 & 0.008309 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Results}
+\label{sec:results}
+
+\TBD{Populate from the campaign dataset and training-notebook metrics:
+(a)~grouped-split vs random-split scalar metrics;
+(b)~field $R^2$ and integrated-lift consistency;
+(c)~conformal coverage on unseen airfoils;
+(d)~Mahalanobis detection on held-out geometries;
+(e)~per-case wall-clock vs surrogate latency (cost table);
+(f)~MDAO case study with one-click CFD verification of the optimum;
+(g)~dataset overview (status distribution, polar sanity across Re).}
+
+\section{Limitations}
+\label{sec:limits}
+
+The platform is 2D and incompressible (valid for $M\le0.3$); it resolves no
+induced drag, laminar--turbulent transition, or transonic effects. The
+linear-eddy-viscosity closure delays separation onset under strong adverse
+gradients, and near-stall cases (particularly $\alpha=\pm14^\circ$) may fail
+the stationarity criterion --- such rows are retained with their true status
+rather than filtered. The Mahalanobis guard is calibrated to the NACA
+4-digit manifold and is not a general-purpose OOD method beyond it.
+
+\section{Conclusion}
+\label{sec:conclusion}
+
+\TBD{Final conclusions once results are populated.}
+
+\bibliographystyle{plainnat}
+\bibliography{refs}
+
+\end{document}

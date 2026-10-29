@@ -134,9 +134,15 @@ def generate_physics_augmented_dataset(
     output_dir: Path | str = PROJECT_ROOT / "data" / "processed",
 ) -> tuple[Path, Path]:
     """
-    Generate a high-fidelity dataset combining anchor OpenFOAM CFD simulations
-    with classical thin-airfoil theory and empirical viscous corrections (Abbott & von Doenhoff,
-    NASA Langley TMR, Ladson 1988) across the full design space.
+    SYNTHETIC PLACEHOLDER — NOT CFD DATA.
+
+    Generates a tabular dataset from closed-form thin-airfoil theory with
+    empirical viscous corrections and additive Gaussian noise. Every row is
+    tagged status="converged" only for schema compatibility; no OpenFOAM run
+    is involved. This function exists solely to keep legacy tests and the
+    scaffold runnable. The paper dataset MUST come from the real-OpenFOAM
+    campaign instead: scripts/run_dataset_campaign.py (see
+    RUN_CFD_PACKAGE_README.md).
 
     Produces:
     1. airfoil_cfd_dataset.csv (tabular geometry + CST weights + operating conditions + targets)

@@ -4,8 +4,9 @@ Unit and WSL OpenFOAM integration tests for the 2D 6-block C-grid mesh generator
 
 from __future__ import annotations
 
-from pathlib import Path
+import platform
 import shutil
+from pathlib import Path
 import pytest
 
 from src.config import PROJECT_ROOT, load_config
@@ -36,6 +37,10 @@ def test_generate_blockmesh_dict_structure(tmp_path: Path) -> None:
     assert meta["expected_cells"] == 2 * (meta["n_nose"] + meta["n_aft"] + 40) * 45
 
 
+@pytest.mark.skipif(
+    platform.system() != "Windows" or shutil.which("wsl") is None,
+    reason="Requires Windows with WSL and OpenFOAM installed",
+)
 def test_wsl_blockmesh_and_checkmesh_integration() -> None:
     """
     Generate a medium 2D C-grid for NACA 0012 inside data/raw_cases/_mesh_sanity_check
