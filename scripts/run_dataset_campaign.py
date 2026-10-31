@@ -19,6 +19,7 @@ Example:
 from __future__ import annotations
 
 import argparse
+import json
 import shutil
 import sys
 import threading
@@ -36,6 +37,7 @@ import pandas as pd
 from scipy.stats import qmc
 
 from src.config import load_config
+from src.dataset.cst_sampler import sample_general_cst_airfoils
 from src.dataset.pipeline import run_single_cfd_sample
 from src.dataset.sampler import AirfoilSample, naca_code_from_params
 
@@ -51,6 +53,8 @@ _print_lock = threading.Lock()
 
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Run the real-CFD dataset campaign.")
+    p.add_argument("--sampler", choices=["naca", "cst"], default="naca",
+                   help="naca: LHS over NACA 4-digit codes; cst: general-CST manifold")
     p.add_argument("--airfoils", type=int, default=21, help="Number of LHS-sampled airfoils")
     p.add_argument("--alphas", type=str, default="-6,-2,2,6,10,14", help="Comma-separated alphas (deg)")
     p.add_argument("--res", type=str, default="1e6,2e6,3e6,6e6", help="Comma-separated Reynolds numbers")
@@ -59,6 +63,8 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--jobs", type=int, default=3, help="Concurrent WSL solver instances")
     p.add_argument("--limit", type=int, default=0, help="Stop after N new cases (0 = no limit)")
     p.add_argument("--seed", type=int, default=42)
+    p.add_argument("--manifest", type=str, default="",
+                   help="Path to an active-learning manifest JSON (overrides --sampler)")
     return p.parse_args()
 
 
@@ -139,13 +145,44 @@ def main() -> None:
 
     alphas = [float(a.strip()) for a in args.alphas.split(",") if a.strip()]
     reynolds_list = [float(r.strip()) for r in args.res.split(",") if r.strip()]
-    codes = sample_airfoil_codes(args.airfoils, args.seed)
 
-    total = len(codes) * len(alphas) * len(reynolds_list)
-    print("=" * 72)
-    print("REAL-CFD DATASET CAMPAIGN")
-    print("=" * 72)
-    print(f"Airfoils ({len(codes)}) : {', '.join(codes)}")
+    if args.manifest:
+        manifest = json.loads(Path(args.manifest).read_text(encoding="utf-8"))
+        manifest_cases = manifest["cases"]
+        prebuilt = [
+            AirfoilSample(
+                case_id=c["case_id"], naca_code=c["shape_id"],
+                m=c["m"], p=c["p"], t=c["t"],
+                alpha_deg=c["alpha_deg"], reynolds=c["reynolds"],
+                cst_upper=tuple(c["cst_upper"]) if c.get("cst_upper") else None,
+                cst_lower=tuple(c["cst_lower"]) if c.get("cst_lower") else None,
+            )
+            for c in manifest_cases
+        ]
+        codes = [s.naca_code for s in prebuilt]
+        total = len(prebuilt)
+        print("=" * 72)
+        print(f"REAL-CFD CAMPAIGN (active-learning manifest, round {manifest.get('round', '?')}, {total} cases)")
+        print("=" * 72)
+        print(f"Shape ids       : {', '.join(sorted(set(codes)))}")
+        cst_shapes = []
+    elif args.sampler == "cst":
+        cst_shapes = sample_general_cst_airfoils(args.airfoils, seed=args.seed)
+        shape_ids = [s.sample_id for s in cst_shapes]
+        total = len(shape_ids) * len(alphas) * len(reynolds_list)
+        print("=" * 72)
+        print(f"REAL-CFD DATASET CAMPAIGN (sampler: general CST, {len(shape_ids)} shapes)")
+        print("=" * 72)
+        print(f"Shape ids       : {', '.join(shape_ids)}")
+        codes = shape_ids  # used only for the progress/summary prints below
+    else:
+        cst_shapes = []
+        codes = sample_airfoil_codes(args.airfoils, args.seed)
+        total = len(codes) * len(alphas) * len(reynolds_list)
+        print("=" * 72)
+        print(f"REAL-CFD DATASET CAMPAIGN (sampler: NACA LHS, {len(codes)} airfoils)")
+        print("=" * 72)
+        print(f"Airfoils ({len(codes)}) : {', '.join(codes)}")
     print(f"Alphas          : {alphas}")
     print(f"Reynolds        : {reynolds_list}")
     print(f"Mesh level      : {args.mesh_level} | jobs: {args.jobs}")
@@ -165,15 +202,31 @@ def main() -> None:
     store = Store(existing, x_grid, cp_store)
     print(f"Resume: {len(done_ids)} cases already done" if done_ids else "Fresh start")
 
-    def run_one(code: str, reynolds: float, alpha: float) -> None:
+    def build_sample(shape_id: str, reynolds: float, alpha: float) -> AirfoilSample:
+        """Create the campaign AirfoilSample for either sampler mode."""
+        if args.sampler == "cst":
+            cst_sample = next(s for s in cst_shapes if s.sample_id == shape_id)
+            case_id = f"{shape_id}_a{alpha:+.1f}_Re{reynolds:.0e}".replace("e+0", "e").replace("e+", "e")
+            return AirfoilSample(
+                case_id=case_id, naca_code=shape_id,
+                m=cst_sample.measured_camber,
+                p=cst_sample.geometry.p,
+                t=cst_sample.measured_thickness,
+                alpha_deg=alpha, reynolds=reynolds,
+                cst_upper=cst_sample.cst_upper, cst_lower=cst_sample.cst_lower,
+            )
+        code = shape_id
         case_id = f"NACA{code}_a{alpha:+.1f}_Re{reynolds:.0e}".replace("e+0", "e").replace("e+", "e")
-        if case_id in done_ids:
-            return
-        sample = AirfoilSample(
+        return AirfoilSample(
             case_id=case_id, naca_code=code,
             m=int(code[0]) / 100.0, p=int(code[1]) / 10.0, t=int(code[2:4]) / 100.0,
             alpha_deg=alpha, reynolds=reynolds,
         )
+
+    def run_one(sample: AirfoilSample) -> None:
+        case_id = sample.case_id
+        if case_id in done_ids:
+            return
         case_dir = RAW_DIR / case_id
         t0 = time.perf_counter()
         try:
@@ -196,9 +249,9 @@ def main() -> None:
                 }
         else:
             record = {
-                "case_id": case_id, "naca_code": code,
+                "case_id": case_id, "naca_code": sample.naca_code,
                 "m": sample.m, "p": sample.p, "t": sample.t,
-                "alpha_deg": alpha, "reynolds": reynolds,
+                "alpha_deg": sample.alpha_deg, "reynolds": sample.reynolds,
                 "status": result.get("status", "solver_failed"), "success": False,
             }
         record["wall_time_s"] = round(elapsed, 1)
@@ -209,19 +262,22 @@ def main() -> None:
             cl = record.get("cl", float("nan"))
             cd = record.get("cd", float("nan"))
             print(
-                f"  {case_id:<32} {record.get('status', '?'):<12} "
+                f"  {case_id:<36} {record.get('status', '?'):<12} "
                 f"CL={cl:+.4f} CD={cd:.5f} ({elapsed:.0f}s)",
                 flush=True,
             )
 
-    jobs = [(c, r, a) for c in codes for r in reynolds_list for a in alphas]
+    if args.manifest:
+        jobs = prebuilt
+    else:
+        jobs = [build_sample(s, r, a) for s in codes for r in reynolds_list for a in alphas]
     if args.limit:
         jobs = jobs[: args.limit]
 
     t_campaign = time.perf_counter()
     new_count = 0
     with ThreadPoolExecutor(max_workers=args.jobs) as pool:
-        futures = [pool.submit(run_one, c, r, a) for c, r, a in jobs]
+        futures = [pool.submit(run_one, s) for s in jobs]
         for fut in as_completed(futures):
             fut.result()
             new_count += 1

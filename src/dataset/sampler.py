@@ -15,7 +15,13 @@ from scipy.stats import qmc
 
 @dataclass(frozen=True)
 class AirfoilSample:
-    """Design space sample defining geometry parameters and operating conditions."""
+    """Design space sample defining geometry parameters and operating conditions.
+
+    For NACA-mode cases, `naca_code` defines the geometry. For general-CST
+    cases, provide `cst_upper`/`cst_lower` instead and set `naca_code` to the
+    shape's CST hash id (e.g. "CST-1a2b3c4d"); m/p/t then carry the *measured*
+    camber/camber-position/thickness summaries.
+    """
 
     case_id: str
     naca_code: str
@@ -24,6 +30,8 @@ class AirfoilSample:
     t: float
     alpha_deg: float
     reynolds: float
+    cst_upper: tuple[float, ...] | None = None
+    cst_lower: tuple[float, ...] | None = None
 
 
 def naca_code_from_params(m: float, p: float, t: float) -> str:

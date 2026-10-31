@@ -37,8 +37,13 @@ def run_single_cfd_sample(
         shutil.rmtree(output_case_dir)
     output_case_dir.mkdir(parents=True, exist_ok=True)
 
-    # 1. Geometry
-    airfoil = generate_naca4_airfoil(sample.naca_code, num_points=161, closed_te=True)
+    # 1. Geometry (NACA code or explicit CST weights)
+    if sample.cst_upper is not None and sample.cst_lower is not None:
+        from src.dataset.cst_sampler import geometry_from_cst
+
+        airfoil = geometry_from_cst(sample.cst_upper, sample.cst_lower)
+    else:
+        airfoil = generate_naca4_airfoil(sample.naca_code, num_points=161, closed_te=True)
     airfoil.save_dat(output_case_dir / "airfoil.dat")
     airfoil.save_metadata(output_case_dir / "airfoil_meta.json")
 
