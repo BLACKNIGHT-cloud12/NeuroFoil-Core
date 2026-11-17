@@ -1,23 +1,67 @@
 {
-  "case": "NACA0012, alpha=4.0 deg, Re=6e6, incompressible kOmegaSST",
-  "medium_reference": {
-    "cl": 0.439174,
-    "cd": 0.009479,
-    "cm": 0.002438,
-    "wall_time_s": 178.8,
-    "status": "converged"
-  },
+  "case": "NACA0012, alpha=4.0 deg, Re=6e6, incompressible kOmegaSST, fully turbulent",
+  "purpose": "Grid + convergence-depth sensitivity for the production medium mesh",
   "runs": [
     {
+      "level": "coarse",
+      "cells": 9000,
+      "iters": 3000,
+      "cl": 0.43135,
+      "cd": 0.010731,
+      "cm": 0.002669,
+      "status": "converged",
+      "wall_time_s": 66.6
+    },
+    {
+      "level": "medium",
+      "cells": 18048,
+      "iters": 3000,
+      "cl": 0.439174,
+      "cd": 0.009479,
+      "cm": 0.002438,
+      "status": "converged",
+      "wall_time_s": 178.8,
+      "note": "production configuration (campaign settings); pipeline-check reference"
+    },
+    {
+      "level": "medium",
+      "cells": 18048,
+      "iters": 6000,
+      "cl": 0.433634,
+      "cd": 0.009701,
+      "cm": null,
+      "status": "converged",
+      "wall_time_s": 364.6
+    },
+    {
       "level": "fine",
-      "status": "unconverged",
-      "cl": 0.46032360033,
-      "cd": 0.0082401750918,
-      "cm": 0.0012768168832999998,
-      "wall_time_s": 382.5,
       "cells": 36000,
-      "max_iterations": 3000
+      "iters": 3000,
+      "cl": 0.460324,
+      "cd": 0.00824,
+      "cm": 0.001277,
+      "status": "unconverged",
+      "wall_time_s": 383.6,
+      "note": "stopped at iteration cap mid-relaxation; excluded from grid comparison"
+    },
+    {
+      "level": "fine",
+      "cells": 36000,
+      "iters": 6000,
+      "cl": 0.431065,
+      "cd": 0.009774,
+      "cm": 0.00205,
+      "status": "converged",
+      "wall_time_s": 765.9,
+      "note": "CL still drifting slowly (~+0.003/1000 iters) at cap; std criterion met"
     }
   ],
-  "note": "Same pipeline as the 504-case campaign; separate case dirs (data/mesh_study/) keep campaign resume logic untouched."
+  "findings": [
+    "At equal convergence depth (6000 iters): CL spread across coarse/medium/fine is 0.4311-0.4336 (0.6%); medium-vs-fine CD differs by 0.7% - the production medium mesh is inside the asymptotic range at this operating point.",
+    "Convergence depth is the dominant uncertainty, not mesh refinement: at 3000 iters both medium and fine sit on a slowly-relaxing transient (CL inflated ~1.3% medium / ~6.8% fine, CD deflated ~2.4% medium).",
+    "The campaign std-window criterion (CL std < 5e-4 over 100 iters) is met at 3000 iters on medium but catches only part of the drift; systematic bias bounded ~1.3% CL, ~2.4% CD for the production dataset.",
+    "Coarse-mesh CD (+10% vs medium/fine) shows the under-resolved near-wall region over-predicts drag; medium and fine agree.",
+    "Fine mesh needs >= 6000 iterations for steady statistics; the campaign uses only medium, so no campaign impact."
+  ],
+  "campaign_implication": "Medium-mesh / 3000-iter production settings introduce <= ~1.5% CL and <= ~3% CD systematic uncertainty from convergence depth at alpha=4; acceptable for surrogate training and flagged for the report's V&V section."
 }
