@@ -35,6 +35,8 @@ def test_neural_backend_end_to_end(tmp_path: Path) -> None:
 
     result = engine.predict(m=0.02, p=0.4, t=0.12, alpha_deg=4.0)
     assert result["model_backend"] == "neural"
+    assert result["model_provenance"] == "unverified_legacy_artifact"
+    assert result["field_backend"] == "neural"
     for key in ("cl", "cd", "cm", "lift_to_drag", "cp_upper", "cp_lower", "delta_cp", "uq", "wingbox"):
         assert key in result
     assert result["cp_upper"].shape == (161,)
@@ -45,6 +47,106 @@ def test_neural_backend_end_to_end(tmp_path: Path) -> None:
     # Conformal intervals from the meta file must surface in the UQ report
     assert abs(result["uq"].cl_ci95[0] - (result["cl"] - 0.05)) < 1e-9
     assert abs(result["uq"].cl_ci95[1] - (result["cl"] + 0.05)) < 1e-9
+
+
+def test_neural_field_output_is_inverse_scaled(tmp_path: Path) -> None:
+    field_mean = np.concatenate([np.full(161, -1.25), np.full(161, 0.35)])
+    field_scale = np.full(322, 2.0)
+    _random_weights(
+        tmp_path,
+        seed=11,
+        field_mean=field_mean,
+        field_scale=field_scale,
+    )
+    engine = AeroSurrogateEngine(models_dir=tmp_path)
+    engine._forward_field = lambda _x: np.zeros((1, 322), dtype=float)
+
+    result = engine.predict(m=0.02, p=0.4, t=0.12, alpha_deg=4.0)
+
+    assert result["field_backend"] == "neural"
+    assert result["uq"].cm_ci95[0] == pytest.approx(result["cm"] - 0.01)
+    assert result["uq"].cm_ci95[1] == pytest.approx(result["cm"] + 0.01)
+    np.testing.assert_allclose(result["cp_upper"], -1.25)
+    np.testing.assert_allclose(result["cp_lower"], 0.35)
+    np.testing.assert_allclose(result["delta_cp"], 1.60)
+
+
+def test_legacy_neural_bundle_uses_honest_field_fallback(tmp_path: Path) -> None:
+    _random_weights(tmp_path, include_field_scaler=False)
+    engine = AeroSurrogateEngine(models_dir=tmp_path)
+    engine._forward_field = lambda _x: np.full((1, 322), 999.0)
+
+    result = engine.predict(m=0.02, p=0.4, t=0.12, alpha_deg=4.0)
+
+    assert result["model_backend"] == "neural"
+    assert result["field_backend"] == "analytic_fallback_missing_field_scaler"
+    assert np.max(np.abs(result["cp_upper"])) < 999.0
+    assert np.all(np.isfinite(result["cp_upper"]))
+    cp_band_width = (
+        result["uq"].cp_upper_ci95_high - result["uq"].cp_upper_ci95_low
+    )
+    assert not np.allclose(cp_band_width, 0.2)
+
+
+def test_geometry_failure_falls_back_to_analytic_uq_and_provenance(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import src.models.inference as inference_module
+
+    _random_weights(tmp_path)
+    engine = AeroSurrogateEngine(models_dir=tmp_path)
+
+    def broken_geometry(*args, **kwargs):
+        raise ValueError("forced geometry failure")
+
+    monkeypatch.setattr(inference_module, "generate_naca4_airfoil", broken_geometry)
+
+    result = engine.predict(m=0.02, p=0.4, t=0.12, alpha_deg=4.0)
+
+    assert result["model_backend"] == "analytic_fallback"
+    assert result["model_provenance"] == "analytic_fallback"
+    assert result["field_backend"] == "analytic_fallback"
+    assert "geometry construction failed" in result["backend_note"]
+    # Neural conformal intervals (q_cl = 0.05) would give exactly a 0.10 width;
+    # the analytic fallback must not inherit them.
+    interval_width = result["uq"].cl_ci95[1] - result["uq"].cl_ci95[0]
+    assert not np.isclose(interval_width, 0.10)
+
+
+def test_partial_field_scaler_is_rejected(tmp_path: Path) -> None:
+    _random_weights(tmp_path)
+    (tmp_path / "scaler_field_scale.npy").unlink()
+
+    with pytest.raises(ValueError, match="Incomplete Cp field scaler"):
+        AeroSurrogateEngine(models_dir=tmp_path)
+
+
+def test_prediction_uses_continuous_geometry_parameters(tmp_path: Path) -> None:
+    _random_weights(tmp_path)
+    engine = AeroSurrogateEngine(models_dir=tmp_path)
+    seen: dict[str, float] = {}
+    original = engine._build_features
+
+    def capture_features(airfoil, alpha_deg, reynolds):
+        seen.update(m=airfoil.m, p=airfoil.p, t=airfoil.t)
+        return original(airfoil, alpha_deg, reynolds)
+
+    engine._build_features = capture_features
+    engine.predict(m=0.0237, p=0.413, t=0.1275, alpha_deg=4.0)
+
+    assert seen == {"m": 0.0237, "p": 0.413, "t": 0.1275}
+
+
+def test_partial_scalar_scaler_bundle_uses_analytic_backend(tmp_path: Path) -> None:
+    _random_weights(tmp_path)
+    (tmp_path / "scaler_y_scale.npy").unlink()
+
+    engine = AeroSurrogateEngine(models_dir=tmp_path)
+    result = engine.predict(m=0.02, p=0.4, t=0.12, alpha_deg=4.0)
+
+    assert engine.backend == "analytic_fallback"
+    assert result["model_backend"] == "analytic_fallback"
+    assert result["field_backend"] == "analytic_fallback"
 
 
 def test_numpy_forward_matches_torch(tmp_path: Path) -> None:
@@ -155,6 +257,11 @@ def test_campaign_helpers() -> None:
     assert codes[:3] == ["0012", "2412", "4412"]  # anchors first
     assert len(codes) == len(set(codes))          # unique
     assert len(codes) == 21
+    assert sample_airfoil_codes(1, seed=42) == ["0012"]
+    assert sample_airfoil_codes(2, seed=42) == ["0012", "2412"]
+    assert sample_airfoil_codes(3, seed=42) == ["0012", "2412", "4412"]
+    with pytest.raises(ValueError, match="positive integer"):
+        sample_airfoil_codes(0, seed=42)
     for c in codes:
         assert len(c) == 4 and c.isdigit()
 

@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 """
-Generate and Package Aerodynamic CFD Dataset for Kaggle Training.
+Generate a clearly labeled synthetic placeholder dataset for development tests.
+
+This script does not run OpenFOAM and its output must not be used as CFD evidence
+or as the canonical NeuroFoil training dataset.
 """
 
 from __future__ import annotations
@@ -20,7 +23,7 @@ from src.dataset.pipeline import generate_physics_augmented_dataset
 
 def main() -> None:
     print("=" * 72)
-    print("GENERATING AERODYNAMIC DATASET FOR KAGGLE SURROGATE TRAINING")
+    print("GENERATING SYNTHETIC ANALYTIC PLACEHOLDER DATASET")
     print("=" * 72)
 
     csv_path, npz_path = generate_physics_augmented_dataset(
@@ -43,7 +46,7 @@ def main() -> None:
     print(f"  cp_lower shape      : {npz['cp_lower'].shape}")
     print(f"  delta_cp shape      : {npz['delta_cp'].shape}")
     print("=" * 72)
-    print("DATASET READY FOR KAGGLE UPLOAD")
+    print("SYNTHETIC PLACEHOLDER READY (NOT CFD; DO NOT USE AS PAPER/TRAINING EVIDENCE)")
     print("=" * 72)
 
 

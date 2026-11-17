@@ -10,10 +10,18 @@ import numpy as np
 from src.models.inference import DEFAULT_FEATURE_ORDER, TARGET_ORDER, WEIGHTS_FILE, META_FILE
 
 
-def make_random_neural_models(models_dir: Path, seed: int = 0) -> None:
+def make_random_neural_models(
+    models_dir: Path,
+    seed: int = 0,
+    *,
+    include_field_scaler: bool = True,
+    field_mean: np.ndarray | None = None,
+    field_scale: np.ndarray | None = None,
+    data_source: str | None = None,
+) -> None:
     """
-    Write architecturally-correct random surrogate weights + scalars + conformal
-    meta into models_dir, so AeroSurrogateEngine loads with backend="neural".
+    Write architecturally-correct random surrogate weights, scalers and conformal
+    metadata so AeroSurrogateEngine loads with backend="neural".
     """
     rng = np.random.default_rng(seed)
     in_dim = len(DEFAULT_FEATURE_ORDER)  # 17
@@ -46,6 +54,13 @@ def make_random_neural_models(models_dir: Path, seed: int = 0) -> None:
     np.save(models_dir / "scaler_x_scale.npy", np.ones(in_dim))
     np.save(models_dir / "scaler_y_mean.npy", np.zeros(3))
     np.save(models_dir / "scaler_y_scale.npy", np.ones(3))
+    if include_field_scaler:
+        if field_mean is None:
+            field_mean = np.zeros(322)
+        if field_scale is None:
+            field_scale = np.ones(322)
+        np.save(models_dir / "scaler_field_mean.npy", np.asarray(field_mean, dtype=float))
+        np.save(models_dir / "scaler_field_scale.npy", np.asarray(field_scale, dtype=float))
 
     meta = {
         "feature_order": DEFAULT_FEATURE_ORDER,
@@ -57,4 +72,7 @@ def make_random_neural_models(models_dir: Path, seed: int = 0) -> None:
             "q_cp_upper": [0.1] * 161, "q_cp_lower": [0.08] * 161,
         },
     }
+    if data_source is not None:
+        meta["data_source"] = data_source
+        meta["is_synthetic"] = data_source.strip().lower() != "openfoam"
     (models_dir / META_FILE).write_text(json.dumps(meta), encoding="utf-8")

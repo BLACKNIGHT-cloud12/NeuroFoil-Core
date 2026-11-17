@@ -11,42 +11,39 @@
 %TODO marker for pending campaign results
 \newcommand{\TBD}[1]{\textcolor{red}{[TBD: #1]}}
 
-\title{NeuroFoil: An Open Pipeline Coupling Real-OpenFOAM RANS Data with\\
-Calibrated Neural Surrogates for Two-Dimensional Airfoil Design}
+\title{NeuroFoil: Work-in-Progress Open Pipeline for Coupling OpenFOAM RANS Data with\\
+Neural Surrogates for Two-Dimensional Airfoil Design}
 
 \author{%
   BLACKNIGHT (cloud12)\thanks{Independent researcher. Code and data:
   \url{https://github.com/BLACKNIGHT-cloud12/NeuroFoil-Core}}%
 }
-\date{October 2026}
+\date{November 2026}
 
 \begin{document}
 \maketitle
 
 \begin{abstract}
-Neural surrogates can collapse the cost of aerodynamic design exploration from
-minutes-per-evaluation (RANS CFD) to sub-millisecond inference, but published
-surrogate pipelines frequently entangle three failure modes: training data of
-uncertain provenance, train/test contamination across airfoil geometries, and
-uncertainty estimates that are neither calibrated nor evaluated. We present
-NeuroFoil, an open end-to-end pipeline that addresses all three. A fully
-automated OpenFOAM workflow (steady incompressible k--$\omega$ SST on
-parametric six-block structured C-grids, $y^+ \approx 1$, potential-flow
-initialization) generates a campaign dataset of \TBD{N} simulation records
-spanning \TBD{21} airfoils, four Reynolds numbers ($1$--$6\times10^6$), and six
-angles of attack ($-6^\circ$ to $14^\circ$), with every row carrying its honest
-convergence status. Residual MLP and surface-pressure field-decoder networks are
-trained with \emph{airfoil-grouped} splits so that reported test metrics measure
-extrapolation to unseen geometries rather than memorization, alongside
-random-row interpolation baselines. Epistemic uncertainty is quantified with
-split-conformal calibration whose empirical coverage is measured on held-out
-airfoils, and out-of-distribution queries are flagged by a Mahalanobis guard on
-the training manifold. The trained networks deploy through a pure-NumPy runtime
-($<0.5$\,ms per query, no deep-learning framework required) with a one-click
-OpenFOAM verification loop. Solver settings are verified against classical
-NACA~0012 benchmarks: the computed lift slope ($6.29$\,rad$^{-1}$) matches
-thin-airfoil theory and experimental measurements, and a three-level grid study
-quantifies the production-mesh discretization band.
+Neural surrogates may reduce the cost of aerodynamic design exploration, but
+credible performance claims require traceable CFD data, geometry-disjoint
+evaluation, and uncertainty coverage measured on held-out geometries. This
+work-in-progress manuscript describes NeuroFoil, an open research pipeline, not
+an airworthiness certification method, intended to connect a steady
+incompressible OpenFOAM workflow (k--$\omega$ SST on parametric
+six-block structured C-grids, $y^+ \approx 1$, potential-flow initialization)
+to scalar and surface-pressure neural surrogates. A planned campaign comprises
+\TBD{504 completed and quality-controlled cases} spanning \TBD{21 airfoils}, four
+Reynolds numbers ($1$--$6\times10^6$), and six angles of attack
+($-6^\circ$ to $14^\circ$), with per-case convergence status retained. After
+campaign completion, residual-MLP and pressure-field models will be evaluated
+with airfoil-grouped splits, and nominal 95\% split-conformal intervals will be
+reported together with their empirical coverage on unseen geometries. The
+repository's currently bundled dataset and model are legacy synthetic-placeholder
+artifacts; they are excluded from manuscript evidence and do not establish
+real-CFD surrogate performance. This manuscript therefore reports only the
+available solver-check cases and mesh-sensitivity study; surrogate
+accuracy, coverage, latency, and design-optimization results remain pending and will not be claimed
+until regenerated from the real-CFD campaign.
 \end{abstract}
 
 \section{Introduction}
@@ -70,27 +67,30 @@ failure modes recur in surrogate-aerodynamics pipelines:
   out-of-distribution (OOD) detectors are deployed without detection metrics.
 \end{enumerate}
 
-NeuroFoil is built to be auditable against each of these. Its dataset is
-produced by a scripted OpenFOAM campaign whose solver settings are verified
-against classical benchmarks (Section~\ref{sec:verification}); its models are
-trained and reported under airfoil-grouped splits with interpolation baselines
-(Section~\ref{sec:setup}); its intervals are split-conformal with measured
-coverage, and its OOD guard is evaluated on held-out geometries
-(Section~\ref{sec:uq}). Everything --- case dictionaries, mesh generator,
-campaign driver, training notebook, and a framework-free inference runtime ---
-is released under a permissive license.
+NeuroFoil is designed to make each of these elements auditable. Its scripted
+OpenFOAM workflow and numerical settings have been exercised in the limited
+solver-check cases in Section~\ref{sec:verification}. The real-CFD
+campaign, grouped surrogate evaluation, empirical interval-coverage study, and
+OOD evaluation described in Sections~\ref{sec:setup}--\ref{sec:results} remain
+pending. The current repository data and model bundle were trained from a legacy
+synthetic placeholder and are explicitly excluded from the paper's evidence.
+Case dictionaries, mesh generation, the campaign driver, training workflow, and
+a framework-free inference runtime are released to support completion and audit
+of the planned study.
 
-Our contributions are:
+Planned contributions, to be assessed after the campaign is complete, are:
 \begin{itemize}
   \item an open, reproducible, Windows/Linux-portable RANS data-generation
-  pipeline with verified numerical settings (under-relaxation and
-  potential-flow initialization are shown to be load-bearing);
-  \item a leakage-free evaluation protocol for parametric airfoil surrogates
-  that separates interpolation from shape extrapolation;
-  \item split-conformal uncertainty for scalar coefficients and
-  161-point surface-pressure fields with empirical coverage audit;
-  \item a deployment path that runs the trained network in pure NumPy,
-  enabling framework-free, sub-millisecond inference in engineering tools.
+  pipeline with solver settings exercised in the limited verification cases
+  reported here (under-relaxation and potential-flow initialization were
+  load-bearing in those cases);
+  \item a leakage-resistant planned evaluation protocol for parametric airfoil
+  surrogates that separates interpolation from shape extrapolation;
+  \item nominal split-conformal uncertainty intervals for scalar coefficients and
+  161-point surface-pressure fields, paired with an empirical coverage audit;
+  \item a deployment path that runs compatible trained networks in pure NumPy,
+  enabling framework-free inference in engineering tools; latency remains to be
+  benchmarked on stated hardware.
 \end{itemize}
 
 \section{Related Work}
@@ -102,23 +102,24 @@ Class-Shape Transformation (CST) of \citet{kulfan2008} provides a compact,
 order-expandable representation that we use as surrogate input features.
 
 \textbf{Turbulence modeling.} We adopt the shear-stress-transport
-k--$\omega$ model of \citet{menter1994}, the de-facto industrial standard for
+k--$\omega$ model of \citet{menter1994}, a commonly used closure for
 attached and mildly separated external aerodynamics. OpenFOAM
 \citep{weller1998} supplies the finite-volume solver infrastructure.
 
-\textbf{Experimental benchmarks.} The low-speed NACA~0012 measurements of
-\citet{ladson1988} and the tabulations of \citet{abbott1959} anchor our
-solver-verification study (Section~\ref{sec:verification}).
+\textbf{Experimental checks.} The low-speed NACA~0012 measurements of
+\citet{ladson1988} and the tabulations of \citet{abbott1959} provide context for
+our limited solver checks (Section~\ref{sec:verification}).
 
 \textbf{Conformal prediction.} Split conformal prediction
-\citep{papadopoulos2002, vovk2005} yields distribution-free interval estimates
-with finite-sample marginal coverage guarantees under exchangeability, and has
-recently been applied to regression surrogates; we apply it both to scalar
-force coefficients and pointwise to surface-pressure fields.
+\citep{papadopoulos2002, vovk2005} provides finite-sample marginal coverage
+under exchangeability. We plan to construct nominal 95\% scalar intervals and
+pointwise surface-pressure bands, and to report empirical coverage separately on
+held-out airfoils; the nominal level is not treated as evidence that 95\%
+coverage has been achieved on unseen geometries.
 
-\textbf{OOD detection.} We use the Mahalanobis-distance score of
-\citet{lee2018} on the training manifold, evaluated against held-out
-geometries rather than merely asserted.
+\textbf{OOD detection.} We plan to evaluate the Mahalanobis-distance score of
+\citet{lee2018} on the eventual real-CFD training manifold against held-out
+geometries rather than infer performance from configured parameter bounds.
 
 \TBD{Final literature pass: surrogate modeling in aerodynamics
 (mlp/GP/field-prediction literature), conformal applications in engineering
@@ -166,9 +167,9 @@ Freestream turbulence follows low-turbulence wind-tunnel practice
 extracted from the airfoil patch face centroids and resampled onto the 161-point
 cosine grid; force coefficients come from the forceCoeffs function object.
 
-\subsection{Surrogate architectures}
-Two networks are trained (PyTorch \citep{paszke2019}, AdamW, cosine schedule,
-all RNG seeded):
+\subsection{Planned surrogate architectures}
+After the real-CFD campaign passes quality control, the study intends to train
+two networks (PyTorch \citep{paszke2019}, AdamW, cosine schedule, all RNG seeded):
 \begin{itemize}
   \item \textbf{Scalar surrogate}: a deep residual MLP (128-wide, two residual
   blocks with batch normalization and GELU, 64-wide head) mapping 17 features
@@ -180,55 +181,70 @@ all RNG seeded):
   predicted $C_L$.
 \end{itemize}
 
-\subsection{Calibrated uncertainty and OOD detection}
-\label{sec:uq}
-\textbf{Split conformal.} The validation airfoils (unseen in training) form a
-calibration set; the conformal quantile is the
-$\lceil (n+1)(1-\alpha)\rceil/n$ quantile of absolute residuals, applied to
-each scalar target and pointwise across the chord for both Cp surfaces. The
-training notebook reports empirical coverage on untouched test airfoils.
-\textbf{Mahalanobis guard.} Following \citet{lee2018}, the score
-$D_M = \sqrt{(\mathbf{x}-\boldsymbol{\mu})^T \boldsymbol{\Sigma}^{-1}
-(\mathbf{x}-\boldsymbol{\mu})}$ is computed on the training manifold
-(ridged covariance); envelope violations in $(m,p,t,\alpha,\mathrm{Re})$ are
-flagged directly. Detection performance on held-out airfoils is reported in
-Section~\ref{sec:results}.
+\textbf{Runtime provenance behavior.} The deployed API reports
+\texttt{model\_backend} for scalar coefficients, \texttt{model\_provenance} for
+the scalar artifact's declared data source, and \texttt{field\_backend} for
+$C_p$. A ``neural'' backend label identifies a loaded model architecture, not
+evidence that its training data were real CFD. If compatible scalar weights/scalers are absent, coefficients come from
+an analytic fallback and are not neural or CFD-trained predictions. Legacy
+bundles that contain scalar weights but omit the pressure-field target scaler
+retain neural scalar inference while using an explicitly labelled analytic
+$C_p$ fallback; normalized decoder values are not presented as physical $C_p$.
 
-\subsection{Multidisciplinary design optimization}
-An SLSQP loop \citep{kraft1988} maximizes $L/D$ subject to a lift target and
-wingbox structural constraints (front/rear spar depths at 20\%/65\% chord,
-inter-spar fuel-bay area), evaluated from the surrogate in closed form; each
-optimization completes in well under a second on a laptop CPU.
+\subsection{Planned uncertainty calibration and OOD evaluation}
+\label{sec:uq}
+\textbf{Split conformal.} Validation airfoils unseen during fitting are intended
+to form the calibration set. The conformal quantile will be the
+$\lceil (n+1)(1-\alpha)\rceil/n$ quantile of absolute residuals, applied to
+each scalar target and pointwise across the chord for both Cp surfaces. These
+will be described as nominal 95\% intervals; empirical coverage on untouched
+test airfoils may differ and will be reported rather than assumed.
+\textbf{Mahalanobis indicator.} Following \citet{lee2018}, the planned score
+$D_M = \sqrt{(\mathbf{x}-\boldsymbol{\mu})^T \boldsymbol{\Sigma}^{-1}
+(\mathbf{x}-\boldsymbol{\mu})}$ will be computed from the completed real-CFD
+training manifold (ridged covariance), with envelope violations in
+$(m,p,t,\alpha,\mathrm{Re})$ flagged directly. Detection performance on
+held-out geometries is pending Section~\ref{sec:results}.
+
+\subsection{Implemented surrogate design search; planned validation}
+An SLSQP loop \citep{kraft1988} is implemented to search for improved $L/D$
+subject to a lift target and wingbox cross-sectional constraints (front/rear
+spar depths at 20\%/65\% chord and inter-spar fuel-bay area). Its output is a
+surrogate-optimized candidate, not an airworthiness result; runtime and
+independent CFD verification of a candidate remain pending.
 
 \section{Experimental setup}
 \label{sec:setup}
 
-\textbf{Campaign design.} A Latin hypercube over $(m, p, t)$
+\textbf{Campaign design (pending).} A Latin hypercube over $(m, p, t)$
 \citep{mckay1979}, discretized to valid NACA codes and anchored with NACA
-0012/2412/4412, yields \TBD{21} airfoils; crossed with
-$\mathrm{Re}\in\{1,2,3,6\}\times10^6$ and
-$\alpha\in\{-6^\circ,-2^\circ,2^\circ,6^\circ,10^\circ,14^\circ\}$ gives
-\TBD{504} cases at the production (medium) mesh. The driver is resume-safe and
-parallel (multiple WSL/native solver instances), and trims solver artifacts
-after extraction.
+0012/2412/4412, is planned to yield \TBD{21 quality-controlled airfoils}; crossed
+with $\mathrm{Re}\in\{1,2,3,6\}\times10^6$ and
+$\alpha\in\{-6^\circ,-2^\circ,2^\circ,6^\circ,10^\circ,14^\circ\}$, this is a
+planned \TBD{504-case} production campaign on the medium mesh. The campaign is
+pending/regenerating. The currently shipped synthetic-placeholder dataset is
+not a partial campaign result and is excluded from all paper metrics. The driver
+is designed to be resume-safe and parallel and to trim solver artifacts after
+extraction.
 
-\textbf{Evaluation protocol.} Airfoil-grouped splits hold out
+\textbf{Planned evaluation protocol.} Airfoil-grouped splits will hold out
 $\approx$15\% of geometries each for calibration and test; a random-row split
-is trained identically to quantify the interpolation--extrapolation gap.
-Metrics: $R^2$, RMSE, MAE per scalar target; flattened and per-surface field
-$R^2$; integrated-lift physics consistency; conformal coverage; Mahalanobis
-detection rates on unseen geometries. All figures and tables are regenerated
-by a single script from the released artifacts.
+will be trained identically to quantify the interpolation--extrapolation gap.
+Planned metrics are $R^2$, RMSE, and MAE per scalar target; flattened and
+per-surface field $R^2$; integrated-lift physics consistency; empirical coverage
+of nominal conformal intervals; and Mahalanobis detection rates on unseen
+geometries. No values from the legacy synthetic-placeholder artifact will enter
+these results.
 
-\section{Solver verification}
+\section{Solver checks}
 \label{sec:verification}
 
-Before campaign production, the pipeline was verified on NACA 0012 at
+Before campaign production, two NACA 0012 pipeline checks were recorded at
 $\mathrm{Re}=6\times10^6$ (18{,}048-cell medium mesh):
 
 \begin{table}[h]
 \centering
-\caption{Pipeline verification, NACA 0012, Re $=6\times10^6$.}
+\caption{Pipeline checks, NACA 0012, Re $=6\times10^6$.}
 \label{tab:verify}
 \begin{tabular}{lcccc}
 \toprule
@@ -241,16 +257,18 @@ $\alpha=4^\circ$ & $+0.4388$ & 0.00951 & $+0.0024$ & converged
 \end{tabular}
 \end{table}
 
-The $\alpha=4^\circ$ result implies a lift slope of $6.29$\,rad$^{-1}$,
-consistent with thin-airfoil theory ($2\pi$) and with the measured NACA 0012
-slope \citep{abbott1959, ladson1988}; the fully-turbulent drag level sits
-above the transitional experimental value, as expected without a transition
-model. The symmetric case returns $C_L\approx0$ and $C_{m}\approx0$ as
-required. A three-level grid study quantifies the production-mesh band:
+The $\alpha=4^\circ$ result and the near-zero symmetric case are consistent
+with expected qualitative behavior. The two-point slope implied by the
+$\alpha=4^\circ$ result is $6.29$\,rad$^{-1}$, close to thin-airfoil theory
+($2\pi$) and the cited NACA 0012 measurements \citep{abbott1959, ladson1988};
+the fully turbulent drag level is above the transitional experimental value, as
+expected without a transition model. These limited cases do not constitute a
+broad solver or surrogate validation. A three-level mesh study records
+sensitivity for the $\alpha=4^\circ$ case:
 
 \begin{table}[h]
 \centering
-\caption{Grid convergence, NACA 0012, $\alpha=4^\circ$, Re $=6\times10^6$.}
+\caption{Three-level mesh sensitivity, NACA 0012, $\alpha=4^\circ$, Re $=6\times10^6$.}
 \label{tab:grid}
 \begin{tabular}{lccc}
 \toprule
@@ -263,33 +281,51 @@ fine & 36{,}000 & 0.45908 & 0.008309 \\
 \end{tabular}
 \end{table}
 
-\section{Results}
+Across these three meshes, $C_D$ decreases monotonically. The
+medium-to-fine differences quantify observed mesh sensitivity for this case but
+are not claimed as a formal discretization-error estimate or demonstration of
+asymptotic grid convergence.
+
+\section{Results (pending)}
 \label{sec:results}
 
-\TBD{Populate from the campaign dataset and training-notebook metrics:
-(a)~grouped-split vs random-split scalar metrics;
-(b)~field $R^2$ and integrated-lift consistency;
-(c)~conformal coverage on unseen airfoils;
-(d)~Mahalanobis detection on held-out geometries;
-(e)~per-case wall-clock vs surrogate latency (cost table);
-(f)~MDAO case study with one-click CFD verification of the optimum;
-(g)~dataset overview (status distribution, polar sanity across Re).}
+The real-CFD campaign and surrogate evaluation are not complete. Accordingly,
+this section makes no surrogate-performance claim. The current repository model
+is trained on a legacy synthetic placeholder and is excluded from evidence.
+
+\TBD{After campaign completion, populate only from traceable real-CFD artifacts:
+(a)~campaign completion and convergence-status distribution;
+(b)~grouped-split vs random-split scalar metrics;
+(c)~field $R^2$ and integrated-lift consistency;
+(d)~empirical coverage of nominal 95\% intervals on unseen airfoils;
+(e)~Mahalanobis detection on held-out geometries;
+(f)~measured per-case CFD and surrogate latency with hardware/protocol;
+(g)~a surrogate-optimized design-search candidate with independent CFD comparison.}
 
 \section{Limitations}
 \label{sec:limits}
 
-The platform is 2D and incompressible (valid for $M\le0.3$); it resolves no
+The platform is 2D and incompressible (configured for $M\le0.3$); it resolves no
 induced drag, laminar--turbulent transition, or transonic effects. The
-linear-eddy-viscosity closure delays separation onset under strong adverse
+linear-eddy-viscosity closure has known limitations under strong adverse
 gradients, and near-stall cases (particularly $\alpha=\pm14^\circ$) may fail
-the stationarity criterion --- such rows are retained with their true status
-rather than filtered. The Mahalanobis guard is calibrated to the NACA
-4-digit manifold and is not a general-purpose OOD method beyond it.
+the stationarity criterion --- such rows must retain their true status rather
+than be filtered. The planned Mahalanobis indicator is limited to the eventual
+NACA 4-digit training manifold and cannot establish airworthiness. Most
+importantly, the current bundled data/model artifacts are synthetic placeholders,
+so no real-CFD surrogate accuracy or interval-coverage conclusion is available.
 
 \section{Conclusion}
 \label{sec:conclusion}
 
-\TBD{Final conclusions once results are populated.}
+This work-in-progress establishes an auditable software path and preserves the
+reported NACA~0012 solver checks and mesh-sensitivity results. It does not yet
+validate a neural surrogate on real CFD data. The planned 504-case campaign,
+geometry-grouped evaluation, empirical coverage audit, latency benchmark, and
+independent CFD comparison of a surrogate-optimized candidate remain pending.
+The repository's synthetic-placeholder-trained model is excluded from paper
+evidence. \TBD{Revise this conclusion only after traceable campaign artifacts and
+reproducible surrogate results are available.}
 
 \bibliographystyle{plainnat}
 \bibliography{refs}

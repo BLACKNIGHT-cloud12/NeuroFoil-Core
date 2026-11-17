@@ -119,10 +119,10 @@ def sample_general_cst_airfoils(
 
         # 1. NACA anchor
         m_anchor = float(rng.uniform(0.0, 0.06))
-        p_anchor = float(rng.uniform(0.2, 0.6)) if m_anchor > 0 else 0.2
-        t_anchor = float(rng.uniform(*thickness_range))
         m_digit = int(round(m_anchor * 100))
-        p_digit = int(round(p_anchor * 10)) if m_anchor > 0 else 0
+        p_anchor = float(rng.uniform(0.2, 0.6)) if m_digit > 0 else 0.2
+        t_anchor = float(rng.uniform(*thickness_range))
+        p_digit = int(round(p_anchor * 10)) if m_digit > 0 else 0
         t_digit = int(round(t_anchor * 100))
         try:
             anchor = generate_naca4_airfoil(f"{m_digit:1d}{p_digit:1d}{t_digit:02d}", 161, True)
@@ -167,6 +167,6 @@ def sample_general_cst_airfoils(
     if len(accepted) < n_samples:
         raise RuntimeError(
             f"Only {len(accepted)}/{n_samples} valid CST shapes after {attempts} attempts; "
-            "raise perturbation diversity or loosen constraints."
+            "lower perturbation_scale or loosen constraints."
         )
     return accepted

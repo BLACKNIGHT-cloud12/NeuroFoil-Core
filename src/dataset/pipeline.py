@@ -32,6 +32,12 @@ def run_single_cfd_sample(
     """Execute a single CFD case and extract features + targets."""
     mesh_cfg = cfg["mesh"]
     level_dict = mesh_cfg["levels"][mesh_level]
+    provenance = {
+        "data_source": "openfoam",
+        "is_synthetic": False,
+        "solver_backend": "simpleFoam",
+        "mesh_level": mesh_level,
+    }
 
     if output_case_dir.exists():
         shutil.rmtree(output_case_dir)
@@ -43,7 +49,14 @@ def run_single_cfd_sample(
 
         airfoil = geometry_from_cst(sample.cst_upper, sample.cst_lower)
     else:
-        airfoil = generate_naca4_airfoil(sample.naca_code, num_points=161, closed_te=True)
+        airfoil = generate_naca4_airfoil(
+            sample.naca_code,
+            num_points=161,
+            closed_te=True,
+            m=sample.m,
+            p=sample.p,
+            t=sample.t,
+        )
     airfoil.save_dat(output_case_dir / "airfoil.dat")
     airfoil.save_metadata(output_case_dir / "airfoil_meta.json")
 
@@ -60,12 +73,22 @@ def run_single_cfd_sample(
         n_wake=int(level_dict["n_wake"]),
         n_normal=int(level_dict["n_normal"]),
     )
-    _ = run_blockmesh_and_checkmesh(
+    mesh_stats = run_blockmesh_and_checkmesh(
         case_dir=output_case_dir,
         meta=meta,
         wsl_distro=cfg["wsl_environment"]["distro"],
         openfoam_bashrc=cfg["wsl_environment"]["openfoam_bashrc"],
     )
+    if not mesh_stats.mesh_ok:
+        return {
+            "success": False,
+            "status": "mesh_failed",
+            "case_id": sample.case_id,
+            "n_cells": mesh_stats.n_cells,
+            "max_non_ortho": mesh_stats.max_non_orthogonality_deg,
+            "max_skewness": mesh_stats.max_skewness,
+            **provenance,
+        }
 
     # 3. Case builder
     op = OperatingPoint(
@@ -92,16 +115,28 @@ def run_single_cfd_sample(
         f"mkdir -p '{wsl_case}/postProcessing' && "
         f"cp -r postProcessing '{wsl_case}/' && "
         f"cp log.simpleFoam '{wsl_case}/' && "
-        f"cp -r [1-9]* '{wsl_case}/' 2>/dev/null || true && "
+        f"(cp -r [1-9]* '{wsl_case}/' 2>/dev/null || true) && "
         f"rm -rf '{tmp_work}'"
     )
 
     proc = run_solver_command(cmd, wsl_distro=cfg["wsl_environment"]["distro"], timeout=timeout_sec)
 
     if proc.returncode != 0:
-        return {"case_id": sample.case_id, "success": False, "status": "solver_failed"}
+        return {
+            "case_id": sample.case_id,
+            "success": False,
+            "status": "solver_failed",
+            **provenance,
+        }
 
-    conv = evaluate_convergence(output_case_dir, window_size=50)
+    sol = cfg.get("solver", {})
+    conv = evaluate_convergence(
+        output_case_dir,
+        window_size=int(sol.get("convergence_window", 100)),
+        cl_std_tol=float(sol.get("cl_std_tol", 5.0e-4)),
+        cd_std_tol=float(sol.get("cd_std_tol", 2.0e-4)),
+        cm_std_tol=float(sol.get("cm_std_tol", 5.0e-4)),
+    )
     cp_data = extract_surface_cp(output_case_dir, airfoil)
 
     ml_feats = airfoil.sample_ml_features(n_sample=32)
@@ -123,6 +158,7 @@ def run_single_cfd_sample(
         "status": conv.status,
         "cp_available": cp_data["available"],
         "success": True,
+        **provenance,
     }
     record.update(ml_feats)
 
@@ -149,9 +185,9 @@ def generate_physics_augmented_dataset(
     campaign instead: scripts/run_dataset_campaign.py (see
     RUN_CFD_PACKAGE_README.md).
 
-    Produces:
-    1. airfoil_cfd_dataset.csv (tabular geometry + CST weights + operating conditions + targets)
-    2. cp_surface_distributions.npz (161-point surface Cp distributions, upper, lower, and delta)
+    Produces clearly marked synthetic artifacts (and returns their paths):
+    1. synthetic_airfoil_dataset.csv (tabular geometry + CST weights + operating conditions + targets)
+    2. synthetic_cp_surface_distributions.npz (161-point surface Cp distributions, upper, lower, and delta)
     """
     out_path = Path(output_dir)
     out_path.mkdir(parents=True, exist_ok=True)
@@ -250,6 +286,9 @@ def generate_physics_augmented_dataset(
                     "cm": cm,
                     "lift_to_drag": l_over_d,
                     "status": "converged",
+                    "data_source": "synthetic_analytic",
+                    "is_synthetic": True,
+                    "solver_backend": "analytic_placeholder",
                 }
                 row.update(ml_feats)
                 records.append(row)
@@ -261,12 +300,13 @@ def generate_physics_augmented_dataset(
             break
 
     df = pd.DataFrame(records)
-    csv_file = out_path / "airfoil_cfd_dataset.csv"
+    csv_file = out_path / "synthetic_airfoil_dataset.csv"
     df.to_csv(csv_file, index=False)
 
-    npz_file = out_path / "cp_surface_distributions.npz"
+    npz_file = out_path / "synthetic_cp_surface_distributions.npz"
     np.savez_compressed(
         npz_file,
+        data_source=np.array("synthetic_analytic"),
         x_grid=x_161.astype(np.float32),
         cp_upper=np.array(cp_upper_list, dtype=np.float32),
         cp_lower=np.array(cp_lower_list, dtype=np.float32),

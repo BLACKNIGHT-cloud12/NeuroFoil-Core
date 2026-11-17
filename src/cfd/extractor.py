@@ -13,6 +13,9 @@ import re
 from typing import Any
 import numpy as np
 
+# numpy 2.x removed np.trapz in favour of np.trapezoid; support both installs.
+_trapezoid = np.trapezoid if hasattr(np, "trapezoid") else np.trapz
+
 from src.geometry.naca import AirfoilGeometry
 
 
@@ -219,7 +222,7 @@ def extract_surface_cp(
         delta_cp = cp_lower_interp - cp_upper_interp
 
         # Lift coefficient via pressure integration: CL_cp = int_0^1 (Cp_lower - Cp_upper) dx
-        cl_from_cp = float(np.trapezoid(delta_cp, x_grid))
+        cl_from_cp = float(_trapezoid(delta_cp, x_grid))
 
         return {
             "available": True,

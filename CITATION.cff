@@ -1,18 +1,18 @@
 cff-version: 1.2.0
-title: NeuroFoil — ML-Accelerated Aerodynamic Design and CFD Verification Platform
-message: >-
-  If you use this software or dataset, please cite it using this metadata.
+title: "NeuroFoil — ML-Accelerated Aerodynamic Design and CFD Verification Platform"
+message: "If you use this software or dataset, please cite it using this metadata."
 type: software
 authors:
-  - alias: BLACKNIGHT
-    name-suffix: cloud12
+  - name: "BLACKNIGHT-cloud12"
+    website: "https://github.com/BLACKNIGHT-cloud12"
 repository-code: "https://github.com/BLACKNIGHT-cloud12/NeuroFoil-Core"
-abstract: >-
-  NeuroFoil couples an automated 2D RANS OpenFOAM pipeline (k-omega SST,
-  structured C-grids, y+ ~ 1) with neural surrogates for forces and surface
-  pressure distributions, split-conformal uncertainty quantification,
-  Mahalanobis out-of-distribution guardrails, aero-structural wingbox
-  mechanics, and constrained MDAO design optimization.
+abstract: "NeuroFoil is an open engineering platform coupling an automated 2D RANS
+  OpenFOAM pipeline (simpleFoam, k-omega SST, structured C-grids, y+ ~ 1) with neural
+  surrogate models for force coefficients and surface pressure distributions, deployed
+  through a pure-NumPy runtime. It provides split-conformal 95% uncertainty intervals,
+  Mahalanobis out-of-distribution guardrails, aero-structural wingbox mechanics, and
+  constrained multidisciplinary design optimization (MDAO) with one-click CFD
+  verification."
 keywords:
   - aerodynamics
   - CFD
@@ -22,3 +22,5 @@ keywords:
   - OpenFOAM
   - machine learning
 license: Apache-2.0
+version: "0.1.0"
+date-released: "2026-10-29"

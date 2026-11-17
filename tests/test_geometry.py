@@ -38,6 +38,51 @@ def test_parse_naca4_code_invalid() -> None:
         parse_naca4_code("0000")  # zero thickness
 
 
+def test_direct_naca_parameters_preserve_continuous_geometry() -> None:
+    airfoil = generate_naca4_airfoil("2412", m=0.0237, p=0.413, t=0.1275)
+
+    assert airfoil.m == 0.0237
+    assert airfoil.p == 0.413
+    assert airfoil.t == 0.1275
+    assert airfoil.code.startswith("NACA-CONT-")
+
+    # Every legacy positional slot remains accepted and keeps standard code semantics.
+    positional = generate_naca4_airfoil("2412", 81, True, 5)
+    assert positional.code == "NACA2412"
+
+    # Exactly digit-representable direct values retain the familiar standard label.
+    standard = generate_naca4_airfoil(m=0.02, p=0.4, t=0.12)
+    assert standard.code == "NACA2412"
+
+
+def test_direct_naca_parameters_require_complete_valid_triplet() -> None:
+    with pytest.raises(ValueError, match="all of m, p, and t"):
+        generate_naca4_airfoil(m=0.02, p=0.4)
+    with pytest.raises(ValueError, match="finite"):
+        generate_naca4_airfoil(m=np.nan, p=0.4, t=0.12)
+    with pytest.raises(ValueError, match="finite"):
+        generate_naca4_airfoil(m="0.02", p=0.4, t=0.12)  # type: ignore[arg-type]
+    with pytest.raises(ValueError, match="finite"):
+        generate_naca4_airfoil(m=True, p=0.4, t=0.12)
+    with pytest.raises(ValueError, match="p > 0"):
+        generate_naca4_airfoil(m=0.02, p=0.0, t=0.12)
+    with pytest.raises(ValueError, match="0 <= m <= 0.09"):
+        generate_naca4_airfoil(m=0.091, p=0.4, t=0.12)
+    with pytest.raises(ValueError, match="0 <= p < 1"):
+        generate_naca4_airfoil(m=0.02, p=1.0, t=0.12)
+    with pytest.raises(ValueError, match="positive"):
+        generate_naca4_airfoil(m=0.02, p=0.4, t=0.0)
+
+
+def test_direct_symmetric_naca_normalizes_camber_position() -> None:
+    airfoil = generate_naca4_airfoil(m=0.0, p=0.47, t=0.123)
+
+    assert airfoil.m == 0.0
+    assert airfoil.p == 0.0
+    assert airfoil.t == 0.123
+    assert np.allclose(airfoil.y_upper, -airfoil.y_lower, atol=1e-12)
+
+
 def test_naca0012_symmetry_and_thickness() -> None:
     airfoil = generate_naca4_airfoil("0012", num_points=161, closed_te=True)
     assert airfoil.code == "NACA0012"
