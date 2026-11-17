@@ -1,0 +1,23 @@
+{
+  "case": "NACA0012, alpha=4.0 deg, Re=6e6, incompressible kOmegaSST",
+  "medium_reference": {
+    "cl": 0.439174,
+    "cd": 0.009479,
+    "cm": 0.002438,
+    "wall_time_s": 178.8,
+    "status": "converged"
+  },
+  "runs": [
+    {
+      "level": "fine",
+      "status": "unconverged",
+      "cl": 0.46032360033,
+      "cd": 0.0082401750918,
+      "cm": 0.0012768168832999998,
+      "wall_time_s": 382.5,
+      "cells": 36000,
+      "max_iterations": 3000
+    }
+  ],
+  "note": "Same pipeline as the 504-case campaign; separate case dirs (data/mesh_study/) keep campaign resume logic untouched."
+}
