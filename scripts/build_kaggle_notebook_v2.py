@@ -405,8 +405,8 @@ print(f'Cp field (both surfaces) — R2: {r2_flat:.4f} | RMSE: {rmse_flat:.5f}')
 # Physics consistency: integrate delta-Cp lift vs true CL
 d_pred = pred_f[:, N_PTS:] - pred_f[:, :N_PTS]
 d_true = true_f[:, N_PTS:] - true_f[:, :N_PTS]
-cl_int_pred = np.trapz(d_pred, x_grid, axis=1)
-cl_int_true = np.trapz(d_true, x_grid, axis=1)
+cl_int_pred = np.trapezoid(d_pred, x_grid, axis=1)
+cl_int_true = np.trapezoid(d_true, x_grid, axis=1)
 r2_phys = r2_score(cl_int_true, cl_int_pred)
 print(f'Physics consistency: R2(integrated dCp lift vs true CL) = {r2_phys:.4f}')""")
 

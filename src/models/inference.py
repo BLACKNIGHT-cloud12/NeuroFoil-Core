@@ -455,6 +455,7 @@ class AeroSurrogateEngine:
             compute_structures=True,
         )
         opt_pred = self.predict(opt_m, opt_p, opt_t, opt_alpha, compute_structures=True)
+        wb_opt = opt_pred.get("wingbox")
 
         wingbox_constraints_present = wb_opt is not None
         struct_ok = wingbox_constraints_present and (
