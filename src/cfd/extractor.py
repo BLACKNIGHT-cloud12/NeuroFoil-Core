@@ -219,7 +219,7 @@ def extract_surface_cp(
         delta_cp = cp_lower_interp - cp_upper_interp
 
         # Lift coefficient via pressure integration: CL_cp = int_0^1 (Cp_lower - Cp_upper) dx
-        cl_from_cp = float(np.trapezoid(delta_cp, x_grid))
+        cl_from_cp = float(np.trapz(delta_cp, x_grid))
 
         return {
             "available": True,

@@ -55,30 +55,84 @@ def sample_latin_hypercube(
     n_samples: int = 30,
     alpha_min: float = -4.0,
     alpha_max: float = 12.0,
-    reynolds: float = 6.0e6,
+    reynolds: float | None = None,
     seed: int = 42,
+    *,
+    reynolds_min: float = 1.0e6,
+    reynolds_max: float = 6.0e6,
 ) -> list[AirfoilSample]:
     """
     Generate space-filling Latin Hypercube Samples across NACA thickness,
-    camber, camber location, and angle of attack.
-    """
-    sampler = qmc.LatinHypercube(d=4, seed=seed)
-    unit_samples = sampler.random(n=n_samples)
+    camber, camber location, angle of attack, and (by default) Reynolds number.
 
-    # Bounds: [m_fraction, p_fraction, t_fraction, alpha_deg]
+    When ``reynolds`` is ``None``, Reynolds number is sampled log-uniformly
+    between ``reynolds_min`` and ``reynolds_max`` using a fifth LHS dimension.
+    Passing a finite positive ``reynolds`` retains the legacy fixed-Reynolds
+    behavior and uses the original four-dimensional design.
+    """
+    if isinstance(n_samples, (bool, np.bool_)) or not isinstance(n_samples, (int, np.integer)) or n_samples <= 0:
+        raise ValueError(f"n_samples must be a positive integer, got {n_samples!r}.")
+    if not all(
+        isinstance(bound, (int, float, np.integer, np.floating))
+        and not isinstance(bound, (bool, np.bool_))
+        for bound in (alpha_min, alpha_max)
+    ) or not np.isfinite(alpha_min) or not np.isfinite(alpha_max) or alpha_min >= alpha_max:
+        raise ValueError(
+            f"Angle-of-attack bounds must be finite with alpha_min < alpha_max, got "
+            f"[{alpha_min}, {alpha_max}]."
+        )
+
+    sample_reynolds = reynolds is None
+    if sample_reynolds:
+        if not all(
+            isinstance(bound, (int, float, np.integer, np.floating))
+            and not isinstance(bound, (bool, np.bool_))
+            for bound in (reynolds_min, reynolds_max)
+        ):
+            raise ValueError(
+                "Reynolds bounds must be finite and positive with reynolds_min < reynolds_max, "
+                f"got [{reynolds_min}, {reynolds_max}]."
+            )
+        if (
+            not np.isfinite(reynolds_min)
+            or not np.isfinite(reynolds_max)
+            or reynolds_min <= 0.0
+            or reynolds_min >= reynolds_max
+        ):
+            raise ValueError(
+                "Reynolds bounds must be finite and positive with reynolds_min < reynolds_max, "
+                f"got [{reynolds_min}, {reynolds_max}]."
+            )
+    elif (
+        not isinstance(reynolds, (int, float, np.integer, np.floating))
+        or isinstance(reynolds, (bool, np.bool_))
+        or not np.isfinite(reynolds)
+        or reynolds <= 0.0
+    ):
+        raise ValueError(f"Fixed reynolds must be finite and positive, got {reynolds!r}.")
+
+    dimensions = 5 if sample_reynolds else 4
+    sampler = qmc.LatinHypercube(d=dimensions, seed=seed)
+    unit_samples = sampler.random(n=int(n_samples))
+
+    # Bounds: [m_fraction, p_fraction, t_fraction, alpha_deg, log(Re)]
     # m: [0.0, 0.06], p: [0.2, 0.6], t: [0.06, 0.18], alpha: [alpha_min, alpha_max]
     l_bounds = [0.0, 0.20, 0.06, alpha_min]
     u_bounds = [0.06, 0.60, 0.18, alpha_max]
-    scaled = qmc.scale(unit_samples, l_bounds, u_bounds)
+    scaled = qmc.scale(unit_samples[:, :4], l_bounds, u_bounds)
+
+    if sample_reynolds:
+        log_re_min = np.log(float(reynolds_min))
+        log_re_max = np.log(float(reynolds_max))
+        reynolds_values = np.exp(log_re_min + unit_samples[:, 4] * (log_re_max - log_re_min))
+    else:
+        reynolds_values = np.full(int(n_samples), float(reynolds), dtype=float)
 
     samples: list[AirfoilSample] = []
-    for i, row in enumerate(scaled):
+    for i, (row, reynolds_value) in enumerate(zip(scaled, reynolds_values, strict=True)):
         m_raw, p_raw, t_raw, alpha_raw = row
-        # Discretize into valid NACA 4-digit code
+        # Keep the display code for readability, but preserve the continuous LHS geometry.
         code = naca_code_from_params(m_raw, p_raw, t_raw)
-        m_val = int(code[0]) / 100.0
-        p_val = int(code[1]) / 10.0
-        t_val = int(code[2:4]) / 100.0
         alpha_val = round(float(alpha_raw), 2)
         case_id = f"NACA{code}_a{alpha_val:+.2f}_case{i:03d}"
 
@@ -86,11 +140,11 @@ def sample_latin_hypercube(
             AirfoilSample(
                 case_id=case_id,
                 naca_code=code,
-                m=m_val,
-                p=p_val,
-                t=t_val,
+                m=float(m_raw),
+                p=float(p_raw),
+                t=float(t_raw),
                 alpha_deg=alpha_val,
-                reynolds=reynolds,
+                reynolds=float(reynolds_value),
             )
         )
     return samples

@@ -90,18 +90,10 @@ print(f'CSV: {csv_path}')
 print(f'NPZ: {npz_path}')
 
 df_raw = pd.read_csv(csv_path)
-npz = np.load(npz_path)
-x_grid = npz['x_grid']
-print(f'Rows: {len(df_raw)} | columns: {len(df_raw.columns)}')
-print(f"Reynolds levels: {sorted(df_raw['reynolds'].unique())}")
-print(f"Distinct airfoils: {df_raw['naca_code'].nunique()}")
-print(f"Status counts:\\n{df_raw['status'].value_counts().to_string()}")
+npz = np.load(npz_path, allow_pickle=False)
+print(f'Rows: {len(df_raw)} | columns: {len(df_raw.columns)}')""")
 
-# Keep honestly-converged cases only
-df = df_raw[df_raw['status'] == 'converged'].reset_index(drop=True)
-print(f'\\nConverged rows used: {len(df)} (dropped {len(df_raw) - len(df)})')""")
-
-code("""# [3] Features / targets (order must match src/models/inference.py)
+code("""# [3] Validate and align features / targets (order must match src/models/inference.py)
 FEATURE_ORDER = (
     ['m', 'p', 't']
     + [f'cst_u_{i}' for i in range(6)]
@@ -109,22 +101,103 @@ FEATURE_ORDER = (
     + ['alpha_deg', 'reynolds']
 )
 TARGET_ORDER = ['cl', 'cd', 'cm']
+
+required_columns = set(
+    FEATURE_ORDER + TARGET_ORDER + ['status', 'naca_code', 'case_id', 'data_source']
+)
+missing_columns = sorted(required_columns.difference(df_raw.columns))
+if missing_columns:
+    raise ValueError(f'CSV is missing required columns: {missing_columns}')
+
+converged_mask = df_raw['status'].eq('converged')
+if not converged_mask.any():
+    raise ValueError('CSV contains no converged OpenFOAM rows for training.')
+converged_sources = df_raw.loc[converged_mask, 'data_source']
+if converged_sources.isna().any() or not converged_sources.eq('openfoam').all():
+    bad_sources = sorted(converged_sources.fillna('<missing>').astype(str).unique())
+    raise ValueError(
+        'All converged training rows must have data_source="openfoam"; '
+        f'found {bad_sources}. Refusing legacy, unlabeled, or non-OpenFOAM data.'
+    )
+if 'is_synthetic' in df_raw.columns:
+    synthetic_flags = df_raw['is_synthetic']
+    if synthetic_flags.isna().any():
+        raise ValueError('is_synthetic must be non-null when the column is present.')
+    if synthetic_flags.dtype == bool:
+        synthetic_mask = synthetic_flags
+    elif pd.api.types.is_numeric_dtype(synthetic_flags):
+        if not synthetic_flags.isin([0, 1]).all():
+            raise ValueError('is_synthetic must contain only boolean or 0/1 values.')
+        synthetic_mask = synthetic_flags.astype(bool)
+    else:
+        normalized_synthetic = synthetic_flags.astype(str).str.strip().str.lower()
+        if not normalized_synthetic.isin(['true', 'false', '0', '1']).all():
+            raise ValueError('is_synthetic must contain only boolean or 0/1 values.')
+        synthetic_mask = normalized_synthetic.isin(['true', '1'])
+    if synthetic_mask.any():
+        raise ValueError(
+            f'Found {int(synthetic_mask.sum())} synthetic rows; refusing to train the canonical OpenFOAM model.'
+        )
+
+required_npz_arrays = {'x_grid', 'case_ids', 'cp_upper', 'cp_lower'}
+missing_npz_arrays = sorted(required_npz_arrays.difference(npz.files))
+if missing_npz_arrays:
+    raise ValueError(f'Cp NPZ is missing required arrays: {missing_npz_arrays}')
+
+x_grid = np.asarray(npz['x_grid'])
+npz_case_ids_raw = np.asarray(npz['case_ids'])
+cp_upper_npz = np.asarray(npz['cp_upper'])
+cp_lower_npz = np.asarray(npz['cp_lower'])
+if x_grid.ndim != 1 or x_grid.size == 0:
+    raise ValueError(f'x_grid must be a nonempty 1D array; got {x_grid.shape}')
+if npz_case_ids_raw.ndim != 1 or npz_case_ids_raw.size == 0:
+    raise ValueError(f'case_ids must be a nonempty 1D array; got {npz_case_ids_raw.shape}')
+expected_field_shape = (npz_case_ids_raw.size, x_grid.size)
+if cp_upper_npz.shape != expected_field_shape or cp_lower_npz.shape != expected_field_shape:
+    raise ValueError(
+        'Cp arrays must align with case_ids and x_grid: '
+        f'expected {expected_field_shape}, got upper={cp_upper_npz.shape}, lower={cp_lower_npz.shape}'
+    )
+
+def normalize_case_id(value):
+    return value.decode('utf-8') if isinstance(value, (bytes, np.bytes_)) else str(value)
+
+npz_case_ids = [normalize_case_id(cid) for cid in npz_case_ids_raw]
+csv_case_ids = df_raw['case_id'].map(normalize_case_id)
+if len(set(npz_case_ids)) != len(npz_case_ids):
+    raise ValueError('Cp NPZ case_ids must be unique.')
+if csv_case_ids.duplicated().any():
+    raise ValueError('CSV case_id values must be unique for unambiguous Cp alignment.')
+csv_case_id_set = set(csv_case_ids)
+unknown_case_ids = sorted(set(npz_case_ids).difference(csv_case_id_set))
+if unknown_case_ids:
+    raise ValueError(f'Cp NPZ contains case_ids absent from the CSV: {unknown_case_ids[:5]}')
+
+print(f"Reynolds levels: {sorted(df_raw['reynolds'].unique())}")
+print(f"Distinct airfoils: {df_raw['naca_code'].nunique()}")
+print(f"Status counts:\\n{df_raw['status'].value_counts().to_string()}")
+
+# Keep honestly-converged, provenance-verified OpenFOAM cases only
+df = df_raw[converged_mask].reset_index(drop=True)
+print(f'\\nConverged rows used: {len(df)} (dropped {len(df_raw) - len(df)})')
+
 N_PTS = len(x_grid)                       # 161 chordwise points
 N_OUT_FIELD = 2 * N_PTS                   # cp_upper(161) then cp_lower(161)
 
 X = df[FEATURE_ORDER].values.astype(np.float32)
 y_scalars = df[TARGET_ORDER].values.astype(np.float32)
 
-# Align Cp fields to dataframe rows by case_id
-cp_index = {str(cid): i for i, cid in enumerate(npz['case_ids'])}
-rows_with_cp = [i for i, cid in enumerate(df['case_id']) if str(cid) in cp_index]
+# Align Cp fields to dataframe rows by unique case_id
+df_case_ids = df['case_id'].map(normalize_case_id).tolist()
+cp_index = {cid: i for i, cid in enumerate(npz_case_ids)}
+rows_with_cp = [i for i, cid in enumerate(df_case_ids) if cid in cp_index]
 cp_upper = np.zeros((len(df), N_PTS), dtype=np.float32)
 cp_lower = np.zeros((len(df), N_PTS), dtype=np.float32)
 has_cp = np.zeros(len(df), dtype=bool)
 for i in rows_with_cp:
-    j = cp_index[str(df['case_id'].iloc[i])]
-    cp_upper[i] = npz['cp_upper'][j]
-    cp_lower[i] = npz['cp_lower'][j]
+    j = cp_index[df_case_ids[i]]
+    cp_upper[i] = cp_upper_npz[j]
+    cp_lower[i] = cp_lower_npz[j]
     has_cp[i] = True
 y_fields = np.concatenate([cp_upper, cp_lower], axis=1)
 
@@ -134,11 +207,18 @@ print(f'Rows with Cp field: {has_cp.sum()}/{len(df)}')""")
 code("""# [4] Grouped (airfoil-level) split + random-row reference split
 groups = df['naca_code'].values
 unique_codes = sorted(df['naca_code'].unique())
+if len(unique_codes) < 6:
+    raise ValueError(
+        'Grouped train/validation/test splitting requires at least 6 distinct '
+        f'airfoils; found {len(unique_codes)}.'
+    )
 rng = np.random.default_rng(SEED)
 rng.shuffle(unique_codes)
 
 n_test = max(2, int(round(0.15 * len(unique_codes))))
 n_val = max(2, int(round(0.15 * len(unique_codes))))
+if n_test + n_val >= len(unique_codes):
+    raise ValueError('Grouped split leaves no airfoils for training.')
 test_codes = set(unique_codes[:n_test])
 val_codes = set(unique_codes[n_test:n_test + n_val])
 train_codes = set(unique_codes[n_test + n_val:])
@@ -146,9 +226,21 @@ train_codes = set(unique_codes[n_test + n_val:])
 is_test = np.isin(groups, list(test_codes))
 is_val = np.isin(groups, list(val_codes))
 is_train = ~(is_test | is_val)
+if not (is_train.any() and is_val.any() and is_test.any()):
+    raise ValueError('Grouped train/validation/test row splits must all be nonempty.')
+
+mask_tr_cp = is_train & has_cp
+mask_va_cp = is_val & has_cp
+mask_te_cp = is_test & has_cp
+if not (mask_tr_cp.any() and mask_va_cp.any() and mask_te_cp.any()):
+    raise ValueError(
+        'Each grouped split must contain at least one row with an aligned Cp field; '
+        f'got train={mask_tr_cp.sum()}, val={mask_va_cp.sum()}, test={mask_te_cp.sum()}.'
+    )
 
 print(f'Airfoils: train={len(train_codes)}, val={len(val_codes)}, test={len(test_codes)}')
 print(f'Rows:     train={is_train.sum()}, val={is_val.sum()}, test={is_test.sum()}')
+print(f'Cp rows:  train={mask_tr_cp.sum()}, val={mask_va_cp.sum()}, test={mask_te_cp.sum()}')
 print(f'Test airfoils (never seen in training): {sorted(test_codes)}')
 
 # Random-row split (interpolation reference) — same overall proportions
@@ -279,22 +371,31 @@ for i, name in enumerate(TARGET_ORDER):
     print(f"  {name}: {report_random['R2'][i]:.4f} -> {report_grouped['R2'][i]:.4f}")""")
 
 code("""# [8] Train field decoder (grouped split) + physics-consistency check
-mask_tr_cp = is_train & has_cp
-mask_va_cp = is_val & has_cp
-mask_te_cp = is_test & has_cp
+# Runtime standardizes every model input with scaler_x_g, so field training and
+# every field evaluation path must use that same input representation.
+Xtr_field = scaler_x_g.transform(X[mask_tr_cp])
+Xva_field = scaler_x_g.transform(X[mask_va_cp])
+Xte_field = scaler_x_g.transform(X[mask_te_cp])
 
 field_g = StandardScaler().fit(y_fields[mask_tr_cp])
-Ftr = field_g.transform(y_fields[mask_tr_cp])
-Fva = field_g.transform(y_fields[mask_va_cp])
+ytr_field = field_g.transform(y_fields[mask_tr_cp])
+yva_field = field_g.transform(y_fields[mask_va_cp])
+
+if Xtr_field.shape[0] != ytr_field.shape[0] or Xva_field.shape[0] != yva_field.shape[0]:
+    raise ValueError('Field feature/target rows are misaligned after grouped splitting.')
 
 torch.manual_seed(SEED)
 field_model = AeroFieldDecoder(len(FEATURE_ORDER), N_OUT_FIELD).to(device)
-field_model, f_best = train_model(field_model, X[mask_tr_cp], Ftr, X[mask_va_cp], Fva, epochs=300)
+field_model, f_best = train_model(
+    field_model, Xtr_field, ytr_field, Xva_field, yva_field, epochs=300
+)
 print(f'Best val MSE (normalized): {f_best:.5f}')
 
 field_model.eval()
 with torch.no_grad():
-    pred_f = field_g.inverse_transform(field_model(torch.tensor(X[mask_te_cp]).to(device)).cpu().numpy())
+    pred_f = field_g.inverse_transform(
+        field_model(torch.tensor(Xte_field).to(device)).cpu().numpy()
+    )
 true_f = y_fields[mask_te_cp]
 
 r2_flat = r2_score(true_f.flatten(), pred_f.flatten())
@@ -304,8 +405,8 @@ print(f'Cp field (both surfaces) — R2: {r2_flat:.4f} | RMSE: {rmse_flat:.5f}')
 # Physics consistency: integrate delta-Cp lift vs true CL
 d_pred = pred_f[:, N_PTS:] - pred_f[:, :N_PTS]
 d_true = true_f[:, N_PTS:] - true_f[:, :N_PTS]
-cl_int_pred = np.trapezoid(d_pred, x_grid, axis=1)
-cl_int_true = np.trapezoid(d_true, x_grid, axis=1)
+cl_int_pred = np.trapz(d_pred, x_grid, axis=1)
+cl_int_true = np.trapz(d_true, x_grid, axis=1)
 r2_phys = r2_score(cl_int_true, cl_int_pred)
 print(f'Physics consistency: R2(integrated dCp lift vs true CL) = {r2_phys:.4f}')""")
 
@@ -315,39 +416,60 @@ with torch.no_grad():
 
 res_val = np.abs(y_scalars[is_val] - val_pred)
 n_cal = len(res_val)
-q_level = min(1.0, math.ceil((n_cal + 1) * 0.95) / n_cal)
-q_cl = float(np.quantile(res_val[:, 0], q_level))
-q_cd = float(np.quantile(res_val[:, 1], q_level))
-q_cm = float(np.quantile(res_val[:, 2], q_level))
 
-# Per-chord-point conformal quantiles for both surfaces
+def conformal_order_statistic(abs_residuals, coverage=0.95):
+    values = np.asarray(abs_residuals)
+    if values.ndim == 0 or values.shape[0] == 0:
+        raise ValueError('Conformal calibration requires at least one residual row.')
+    rank = min(math.ceil((values.shape[0] + 1) * coverage), values.shape[0])
+    return np.sort(values, axis=0)[rank - 1]
+
+q_scalars = conformal_order_statistic(res_val)
+q_cl, q_cd, q_cm = (float(value) for value in q_scalars)
+
+# Per-chord-point conformal quantiles use their own Cp calibration count.
+Xcal_field = scaler_x_g.transform(X[mask_va_cp])
 with torch.no_grad():
     val_field_pred = field_g.inverse_transform(
-        field_model(torch.tensor(X[is_val & has_cp]).to(device)).cpu().numpy()
+        field_model(torch.tensor(Xcal_field).to(device)).cpu().numpy()
     )
-res_field_val = np.abs(y_fields[is_val & has_cp] - val_field_pred)
-q_cp_upper = np.quantile(res_field_val[:, :N_PTS], q_level, axis=0)
-q_cp_lower = np.quantile(res_field_val[:, N_PTS:], q_level, axis=0)
+res_field_val = np.abs(y_fields[mask_va_cp] - val_field_pred)
+n_field_cal = len(res_field_val)
+q_cp = conformal_order_statistic(res_field_val)
+q_cp_upper = q_cp[:N_PTS]
+q_cp_lower = q_cp[N_PTS:]
 
 # Empirical coverage on the untouched grouped test set
 cov_cl = float(np.mean(np.abs(yte[:, 0] - pred_te[:, 0]) <= q_cl))
 cov_cd = float(np.mean(np.abs(yte[:, 1] - pred_te[:, 1]) <= q_cd))
-cov_cp = float(np.mean(np.abs(true_f[:, :N_PTS] - pred_f[:, :N_PTS]) <= q_cp_upper))
+cov_cm = float(np.mean(np.abs(yte[:, 2] - pred_te[:, 2]) <= q_cm))
+covered_cp_upper = np.abs(true_f[:, :N_PTS] - pred_f[:, :N_PTS]) <= q_cp_upper
+covered_cp_lower = np.abs(true_f[:, N_PTS:] - pred_f[:, N_PTS:]) <= q_cp_lower
+cov_cp_upper = float(np.mean(covered_cp_upper))
+cov_cp_lower = float(np.mean(covered_cp_lower))
+cov_cp_combined = float(np.mean(np.concatenate([covered_cp_upper, covered_cp_lower], axis=1)))
 print(f'q_CL={q_cl:.4f}  q_CD={q_cd:.5f}  q_Cm={q_cm:.4f}')
-print(f'Test coverage: CL {cov_cl:.3f} | CD {cov_cd:.3f} | Cp {cov_cp:.3f}  (target 0.95)')""")
+print(
+    f'Test coverage: CL {cov_cl:.3f} | CD {cov_cd:.3f} | Cm {cov_cm:.3f} | '
+    f'Cp upper {cov_cp_upper:.3f} | Cp lower {cov_cp_lower:.3f} | '
+    f'Cp combined {cov_cp_combined:.3f}  (nominal target 0.95)'
+)""")
 
 code("""# [10] OOD sanity check: Mahalanobis distance for unseen airfoils vs seen
 from scipy.stats import chi2
-feat_tr = X[is_train]
-mu = feat_tr.mean(axis=0)
-cov = np.cov(feat_tr, rowvar=False) + np.eye(len(FEATURE_ORDER)) * 1e-6
-inv = np.linalg.inv(cov)
+# Work in the same standardized feature space used by both neural decoders;
+# otherwise Reynolds units dominate geometry/CST dimensions in the covariance.
+feat_tr_norm = scaler_x_g.transform(X[is_train])
+mu_norm = feat_tr_norm.mean(axis=0)
+cov_norm = np.cov(feat_tr_norm, rowvar=False) + np.eye(len(FEATURE_ORDER)) * 1e-6
+inv_norm = np.linalg.inv(cov_norm)
 
-def mahal(Xq):
-    d = Xq - mu
-    return np.sqrt(np.einsum('ij,jk,ik->i', d, inv, d))
+def mahal_normalized(Xq):
+    Xq_norm = scaler_x_g.transform(Xq)
+    d = Xq_norm - mu_norm
+    return np.sqrt(np.einsum('ij,jk,ik->i', d, inv_norm, d))
 
-d_train, d_test = mahal(X[is_train]), mahal(X[is_test])
+d_train, d_test = mahal_normalized(X[is_train]), mahal_normalized(X[is_test])
 thr = float(np.sqrt(chi2.ppf(0.99, df=len(FEATURE_ORDER))))
 print(f'Mahalanobis: seen-airfoil rows median={np.median(d_train):.2f}, p99={np.percentile(d_train, 99):.2f}')
 print(f'             unseen-airfoil rows median={np.median(d_test):.2f}, max={d_test.max():.2f}')
@@ -365,6 +487,8 @@ np.save(out_dir / 'scaler_x_mean.npy', scaler_x_g.mean_)
 np.save(out_dir / 'scaler_x_scale.npy', scaler_x_g.scale_)
 np.save(out_dir / 'scaler_y_mean.npy', scaler_y_g.mean_)
 np.save(out_dir / 'scaler_y_scale.npy', scaler_y_g.scale_)
+np.save(out_dir / 'scaler_field_mean.npy', field_g.mean_)
+np.save(out_dir / 'scaler_field_scale.npy', field_g.scale_)
 
 # 3. NumPy-friendly weights (consumed by the pure-NumPy runtime)
 sd_mlp = mlp_grouped.state_dict()
@@ -397,12 +521,22 @@ np.savez_compressed(out_dir / 'surrogate_weights.npz', **W)
 meta = {
     'feature_order': FEATURE_ORDER,
     'target_order': TARGET_ORDER,
+    'data_source': 'openfoam',
+    'is_synthetic': False,
+    'source_row_count': int(len(df)),
+    'source_status_counts': {
+        str(status): int(count) for status, count in df_raw['status'].value_counts().items()
+    },
+    'has_field_scaler': True,
+    'field_input_scaler': 'scaler_x',
+    'field_target_scaler': 'scaler_field',
     'arch': {'scalars': 'resmlp_128x2_head64', 'field': 'mlp_128_256_512_322',
              'field_output': 'cp_upper_161_then_cp_lower_161'},
     'x_grid': x_grid.astype(float).tolist(),
     'conformal': {
         'method': 'split_conformal_abs_residual_95pct',
         'calibration_n': int(n_cal),
+        'field_calibration_n': int(n_field_cal),
         'q_cl': q_cl, 'q_cd': q_cd, 'q_cm': q_cm,
         'q_cp_upper': q_cp_upper.tolist(), 'q_cp_lower': q_cp_lower.tolist(),
     },
@@ -419,7 +553,14 @@ meta = {
                         for i, name in enumerate(TARGET_ORDER)},
         'field_grouped_test': {'R2_flat': float(r2_flat), 'RMSE_flat': rmse_flat,
                                'R2_integrated_CL': float(r2_phys)},
-        'coverage_test': {'cl': cov_cl, 'cd': cov_cd, 'cp': cov_cp},
+        'coverage_test': {
+            'cl': cov_cl,
+            'cd': cov_cd,
+            'cm': cov_cm,
+            'cp_upper_pointwise': cov_cp_upper,
+            'cp_lower_pointwise': cov_cp_lower,
+            'cp_combined_pointwise': cov_cp_combined,
+        },
         'n_train_rows': int(is_train.sum()), 'n_val_rows': int(is_val.sum()),
         'n_test_rows': int(is_test.sum()),
         'n_airfoils': int(len(unique_codes)),
@@ -441,8 +582,8 @@ md("""## Next steps
 
 1. Download **`neurofoil_models.zip`** (right panel → Output).
 2. Extract into the repository `models/` folder — it contains
-   `surrogate_weights.npz`, `surrogate_meta.json`, the `.pt` checkpoints and the
-   scaler arrays.
+   `surrogate_weights.npz`, `surrogate_meta.json`, the `.pt` checkpoints, and the
+   input, scalar-target, and field-target scaler arrays.
 3. The Streamlit app and `AeroSurrogateEngine` now run the **trained neural
    network** (pure NumPy, no PyTorch needed at runtime) with conformal 95%
    intervals; `predict(...)['model_backend']` will read `neural`.""")
@@ -459,3 +600,4 @@ nb = {
 
 OUT.write_text(json.dumps(nb, indent=1), encoding="utf-8")
 print(f"Wrote {OUT} ({len(cells)} cells)")
+

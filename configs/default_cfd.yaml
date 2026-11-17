@@ -54,7 +54,8 @@ solver:
   executable: "simpleFoam"
   turbulence_model: "kOmegaSST"
   max_iterations: 3000
-  write_interval: 3000
+  write_interval: 250   # purge_write 1 keeps only the latest snapshot; a mid-run write
+                        # guarantees fields exist even when residualControl stops early
   purge_write: 1
   residual_targets:
     p: 1.0e-5

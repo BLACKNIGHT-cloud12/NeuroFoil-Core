@@ -94,7 +94,7 @@ def main() -> None:
             f"mkdir -p '{wsl_case}/postProcessing' && "
             f"cp -r postProcessing '{wsl_case}/' && "
             f"cp log.simpleFoam '{wsl_case}/' && "
-            f"cp -r [1-9]* '{wsl_case}/' 2>/dev/null || true && "
+            f"(cp -r [1-9]* '{wsl_case}/' 2>/dev/null || true) && "
             f"rm -rf '{tmp_work}'"
         )
 

@@ -200,17 +200,80 @@ def generate_naca4_airfoil(
     num_points: int = 161,
     closed_te: bool = True,
     cst_order: int = 5,
+    *,
+    m: float | None = None,
+    p: float | None = None,
+    t: float | None = None,
 ) -> AirfoilGeometry:
     """
     Generate a parameterized NACA 4-digit airfoil with cosine chordwise spacing.
+
+    ``code`` retains the traditional NACA 4-digit interface. Alternatively,
+    provide all of ``m``, ``p``, and ``t`` as keyword-only arguments to use
+    continuous parameters without digit snapping. For a symmetric direct shape
+    (``m == 0``), ``p`` is normalized to zero.
 
     Uses the standard NACA thickness distribution:
       y_t = 5 * t * (a0*sqrt(x) + a1*x + a2*x^2 + a3*x^3 + a4*x^4)
     where a4 = -0.1036 for a closed trailing edge (NASA TMR standard)
     or a4 = -0.1015 for an open blunt trailing edge.
     """
-    m, p, t = parse_naca4_code(code)
-    clean_code = f"NACA{int(round(m * 100)):1d}{int(round(p * 10)):1d}{int(round(t * 100)):02d}"
+    direct_args = (m, p, t)
+    direct_supplied = tuple(value is not None for value in direct_args)
+    if any(direct_supplied) and not all(direct_supplied):
+        raise ValueError("Direct NACA geometry requires all of m, p, and t; provide either all three or none.")
+
+    if all(direct_supplied):
+        if not all(
+            isinstance(value, (int, float, np.integer, np.floating))
+            and not isinstance(value, (bool, np.bool_))
+            for value in direct_args
+        ):
+            raise ValueError("Direct NACA parameters m, p, and t must be finite real numbers.")
+        m_value, p_value, t_value = direct_args
+        try:
+            m = float(m_value)
+            p = float(p_value)
+            t = float(t_value)
+        except (TypeError, ValueError, OverflowError) as exc:
+            raise ValueError("Direct NACA parameters m, p, and t must be finite real numbers.") from exc
+
+        if not all(np.isfinite(value) for value in (m, p, t)):
+            raise ValueError("Direct NACA parameters m, p, and t must be finite real numbers.")
+        if not 0.0 <= m <= 0.09:
+            raise ValueError(f"Maximum camber m must satisfy 0 <= m <= 0.09, got m={m}.")
+        if not 0.0 <= p < 1.0:
+            raise ValueError(f"Camber position p must satisfy 0 <= p < 1, got p={p}.")
+        if t <= 0.0:
+            raise ValueError(f"Thickness ratio t must be positive, got t={t}.")
+
+        if m == 0.0:
+            m = 0.0
+            p = 0.0
+        elif p <= 0.0:
+            raise ValueError(f"Cambered direct geometry requires p > 0 when m > 0, got m={m}, p={p}.")
+
+        m_scaled = m * 100.0
+        p_scaled = p * 10.0
+        t_scaled = t * 100.0
+        m_digit = int(round(m_scaled))
+        p_digit = int(round(p_scaled))
+        t_digits = int(round(t_scaled))
+        digit_representable = (
+            m == m_digit / 100.0
+            and p == p_digit / 10.0
+            and t == t_digits / 100.0
+            and 0 <= m_digit <= 9
+            and 0 <= p_digit <= 9
+            and 1 <= t_digits <= 99
+        )
+        if digit_representable:
+            clean_code = f"NACA{m_digit:1d}{p_digit:1d}{t_digits:02d}"
+        else:
+            clean_code = f"NACA-CONT-m{m!r}-p{p!r}-t{t!r}"
+    else:
+        m, p, t = parse_naca4_code(code)
+        clean_code = f"NACA{int(round(m * 100)):1d}{int(round(p * 10)):1d}{int(round(t * 100)):02d}"
 
     x = cosine_spacing(num_points)
     a0 = 0.2969

@@ -80,7 +80,7 @@ def compute_wingbox_properties(
 
     # 2. Total cross-sectional area: A_total = \int (yu - yl) dx
     thickness_dist = np.maximum(0.0, yu - yl)
-    total_area = float(np.trapezoid(thickness_dist, x))
+    total_area = float(np.trapz(thickness_dist, x))
 
     # 3. Inter-spar fuel tank area: A_fuel = \int_{x_front}^{x_rear} (yu - yl) dx
     mask_tank = (x >= x_front_spar) & (x <= x_rear_spar)
@@ -88,18 +88,18 @@ def compute_wingbox_properties(
     x_tank = np.unique(x_tank)
     yu_tank = np.interp(x_tank, x, yu)
     yl_tank = np.interp(x_tank, x, yl)
-    fuel_area = float(np.trapezoid(np.maximum(0.0, yu_tank - yl_tank), x_tank))
+    fuel_area = float(np.trapz(np.maximum(0.0, yu_tank - yl_tank), x_tank))
     fuel_fraction = fuel_area / max(total_area, 1e-9)
 
     # 4. Neutral Axis (Centroid) vertical coordinate y_bar:
     # \bar{y} = (1/2 \int (yu^2 - yl^2) dx) / A_total
-    first_moment_y = 0.5 * np.trapezoid(yu**2 - yl**2, x)
+    first_moment_y = 0.5 * np.trapz(yu**2 - yl**2, x)
     y_bar = float(first_moment_y / max(total_area, 1e-9))
 
     # 5. Second Moment of Area (Moment of Inertia) I_xx about neutral axis:
     # I_xx = \int_0^1 [(yu - y_bar)^3 - (yl - y_bar)^3] / 3 dx
     d_ixx = ((yu - y_bar) ** 3 - (yl - y_bar) ** 3) / 3.0
-    i_xx = float(np.trapezoid(np.maximum(0.0, d_ixx), x))
+    i_xx = float(np.trapz(np.maximum(0.0, d_ixx), x))
 
     # 6. Section Modulus Z = I_xx / y_max (resistance to extreme fiber bending stress)
     c_upper = max(float(np.max(yu)) - y_bar, 1e-6)

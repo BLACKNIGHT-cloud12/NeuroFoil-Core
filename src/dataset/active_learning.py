@@ -55,20 +55,54 @@ class ActiveLearningSelector:
                 "Active learning requires trained surrogate weights in models/ "
                 "(run the Kaggle notebook on the previous round's dataset first)."
             )
+        if self.engine.model_provenance.strip().lower() != "openfoam":
+            raise RuntimeError(
+                "Active learning requires a surrogate trained on explicitly "
+                "provenanced OpenFOAM data."
+            )
+        if str(self.engine.meta.get("is_synthetic", False)).strip().lower() in {
+            "true", "1", "yes", "y",
+        }:
+            raise RuntimeError(
+                "Active learning cannot use a surrogate marked as synthetic."
+            )
         self.dataset_csv = Path(dataset_csv)
+        self._manifold_calibration: tuple[np.ndarray, np.ndarray, np.ndarray] | None = None
 
     # ------------------------------------------------------------------
     def _feature_vector(self, c: Candidate) -> np.ndarray:
         return np.array([c.m, c.p, c.t, c.alpha_deg, c.reynolds], dtype=float)
 
-    def _calibrate_manifold(self) -> tuple[np.ndarray, np.ndarray]:
-        """Mean and (ridged) inverse covariance of the training manifold."""
-        df = pd.read_csv(self.dataset_csv)
-        feats = df[["m", "p", "t", "alpha_deg", "reynolds"]].values
-        mean = feats.mean(axis=0)
-        cov = np.cov(feats, rowvar=False)
-        cov = np.atleast_2d(cov) + np.eye(cov.shape[0]) * 1e-6
-        return mean, np.linalg.inv(cov)
+    def _calibrate_manifold(self) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """Cached mean, scale, and inverse correlation of the training manifold."""
+        if self._manifold_calibration is None:
+            df = pd.read_csv(self.dataset_csv)
+            if "status" in df.columns:
+                df = df.loc[df["status"].eq("converged")].copy()
+            if "data_source" not in df.columns:
+                raise ValueError(
+                    "Active learning requires an explicit data_source column."
+                )
+            if df.empty or not df["data_source"].astype(str).str.lower().eq("openfoam").all():
+                raise ValueError(
+                    "Active learning requires converged data_source='openfoam' rows only."
+                )
+            if "is_synthetic" in df.columns:
+                synthetic = df["is_synthetic"].astype(str).str.strip().str.lower()
+                if synthetic.isin({"true", "1", "yes", "y"}).any():
+                    raise ValueError("Synthetic rows cannot calibrate active learning.")
+            feats = df[["m", "p", "t", "alpha_deg", "reynolds"]].to_numpy(dtype=float)
+            if len(feats) < 2 or not np.all(np.isfinite(feats)):
+                raise ValueError("Active-learning calibration needs at least two finite rows.")
+            mean = feats.mean(axis=0)
+            scale = feats.std(axis=0, ddof=0)
+            if np.any(scale <= 0.0):
+                raise ValueError("Active-learning calibration features must vary.")
+            normalized = (feats - mean) / scale
+            cov = np.atleast_2d(np.cov(normalized, rowvar=False))
+            cov += np.eye(cov.shape[0]) * 1e-6
+            self._manifold_calibration = mean, scale, np.linalg.inv(cov)
+        return self._manifold_calibration
 
     # ------------------------------------------------------------------
     def score_candidates(self, candidates: list[Candidate]) -> list[float]:
@@ -76,16 +110,19 @@ class ActiveLearningSelector:
         Acquisition score per candidate: normalized Mahalanobis distance to the
         training manifold plus stall-proximity risk. Higher = more informative.
         """
-        mean, inv_cov = self._calibrate_manifold()
-        std = np.sqrt(np.diag(np.linalg.inv(inv_cov)))
+        if not candidates:
+            return []
+
+        mean, scale, inv_cov = self._calibrate_manifold()
+        feature_count = len(mean)
 
         scores: list[float] = []
         for c in candidates:
             x = self._feature_vector(c)
-            diff = x - mean
+            diff = (x - mean) / scale
             d_m = float(np.sqrt(max(0.0, diff @ inv_cov @ diff)))
             stall = 1.0 / (1.0 + np.exp(-min(15.0, max(-15.0, abs(c.alpha_deg) - 10.5))))
-            scores.append(d_m / np.max(std) + self.STALL_WEIGHT * stall)
+            scores.append(d_m / np.sqrt(feature_count) + self.STALL_WEIGHT * stall)
         return scores
 
     # ------------------------------------------------------------------
@@ -101,15 +138,21 @@ class ActiveLearningSelector:
         select the batch maximizing min-distance in normalized feature space
         (avoids spending the whole round on one corner of the manifold).
         """
+        if batch_size <= 0 or not candidates:
+            return []
+        if diversity_pool_factor <= 0:
+            raise ValueError("diversity_pool_factor must be positive")
+
         scores = self.score_candidates(candidates)
         order = np.argsort(scores)[::-1]
         pool = [candidates[i] for i in order[: diversity_pool_factor * batch_size]]
 
         feats = np.array([self._feature_vector(c) for c in pool])
-        span = np.maximum(feats.max(axis=0) - feats.min(axis=0), 1e-12)
-        feats_n = feats / span
+        minima = feats.min(axis=0)
+        span = np.maximum(feats.max(axis=0) - minima, 1e-12)
+        feats_n = (feats - minima) / span
 
-        selected_idx = [int(np.argmax(scores[: len(pool)]))] if pool else []
+        selected_idx = [0]
         while len(selected_idx) < min(batch_size, len(pool)):
             dist = np.min(
                 np.linalg.norm(feats_n[:, None, :] - feats_n[None, selected_idx, :], axis=2),
@@ -154,7 +197,8 @@ def build_candidate_pool(
         for a in alphas:
             for re_ in reynolds:
                 tag = f"Re{re_:.0e}".replace("e+0", "e").replace("e+", "e")
-                case_id = f"{shape_id}_a{a:+.1f}_{tag}"
+                case_prefix = shape_id if sampler == "cst" else f"NACA{shape_id}"
+                case_id = f"{case_prefix}_a{a:+.1f}_{tag}"
                 if case_id in done:
                     continue
                 pool.append(
