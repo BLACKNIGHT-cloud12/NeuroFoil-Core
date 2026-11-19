@@ -115,37 +115,53 @@ def check_grid_completeness(df: pd.DataFrame, expected: set[str],
 
 def check_physics(df: pd.DataFrame, findings: list[str]) -> list[str]:
     flagged: list[str] = []
+    # Physics checks apply only to completed solver rows. Expected NaNs in
+    # mesh_failed/solver_failed rows describe an uncomputed result, not bad CFD.
+    if "success" in df.columns:
+        completed_mask = df["success"].fillna(False).astype(bool)
+    else:
+        completed_mask = df["status"].isin(["converged", "unconverged"])
+    completed = df.loc[completed_mask].copy()
+    findings.append(
+        f"INFO physics: auditing {len(completed)} completed solver rows; "
+        f"excluding {len(df) - len(completed)} uncomputed failure rows"
+    )
+
     for target in TARGETS:
-        values = pd.to_numeric(df[target], errors="coerce")
-        n_nonfinite = int((~np.isfinite(values) | values.isna()).sum())
+        values = pd.to_numeric(completed[target], errors="coerce")
+        bad = values.isna() | ~np.isfinite(values)
+        n_nonfinite = int(bad.sum())
         if n_nonfinite:
-            flagged.extend(df.loc[values.isna() | ~np.isfinite(values), "case_id"])
-            findings.append(f"FAIL physics: {n_nonfinite} non-finite {target} values")
-    cd = pd.to_numeric(df["cd"], errors="coerce")
+            flagged.extend(completed.loc[bad, "case_id"])
+            findings.append(f"FAIL physics: {n_nonfinite} completed rows have non-finite {target}")
+    cd = pd.to_numeric(completed["cd"], errors="coerce")
     n_negative = int((cd <= 0).sum())
     if n_negative:
-        flagged.extend(df.loc[cd <= 0, "case_id"])
-        findings.append(f"FAIL physics: {n_negative} rows with CD <= 0")
-    n_overcl = int(pd.to_numeric(df["cl"], errors="coerce").abs().gt(MAX_ABS_CL).sum())
+        flagged.extend(completed.loc[cd <= 0, "case_id"])
+        findings.append(f"FAIL physics: {n_negative} completed rows with CD <= 0")
+    cl = pd.to_numeric(completed["cl"], errors="coerce")
+    n_overcl = int(cl.abs().gt(MAX_ABS_CL).sum())
     if n_overcl:
-        flagged.extend(df.loc[pd.to_numeric(df["cl"], errors="coerce").abs()
-                              .gt(MAX_ABS_CL), "case_id"])
-        findings.append(f"WARN physics: {n_overcl} rows with |CL| > {MAX_ABS_CL}")
+        flagged.extend(completed.loc[cl.abs().gt(MAX_ABS_CL), "case_id"])
+        findings.append(f"WARN physics: {n_overcl} completed rows with |CL| > {MAX_ABS_CL}")
 
-    slope_issues = _check_lift_slopes(df)
+    # Lift-slope sanity is meaningful only for training-eligible, converged rows.
+    converged = completed.loc[completed["status"].eq("converged")]
+    slope_issues = _check_lift_slopes(converged)
     flagged.extend(slope_issues)
     if slope_issues:
         findings.append(f"WARN physics: odd lift slope on {len(slope_issues)} airfoil/Re "
                         f"series (e.g. {slope_issues[:3]}); inspect CL(alpha) plot")
-    if not any(f.startswith(("FAIL physics", "WARN physics")) for f in findings):
-        findings.append("PASS physics: all targets finite, CD > 0, "
-                        f"|CL| <= {MAX_ABS_CL}, lift slopes within "
+    physics_findings = [f for f in findings if f.startswith(("FAIL physics", "WARN physics"))]
+    if not physics_findings:
+        findings.append("PASS physics: completed targets finite, CD > 0, "
+                        f"|CL| <= {MAX_ABS_CL}; eligible lift slopes within "
                         f"{LIFT_SLOPE_RANGE} rad^-1")
     return sorted(set(flagged))
 
 
 def _check_lift_slopes(df: pd.DataFrame) -> list[str]:
-    """Linear dCL/dalpha over the attached range |alpha| <= 6 deg, per airfoil+Re."""
+    """Linear dCL/dalpha over |alpha| <= 6 deg, reported per radian."""
     issues: list[str] = []
     attached = df[pd.to_numeric(df["alpha_deg"], errors="coerce").abs() <= 6.0]
     for (code, reynolds_value), group in attached.groupby(["naca_code", "reynolds"]):
@@ -154,9 +170,12 @@ def _check_lift_slopes(df: pd.DataFrame) -> list[str]:
                                  subset=["a", "cl"])
         if len(group) < 3:
             continue
-        slope = float(np.polyfit(group["a"], group["cl"], 1)[0])
-        if not LIFT_SLOPE_RANGE[0] <= slope <= LIFT_SLOPE_RANGE[1]:
-            issues.append(f"{code}@Re{reynolds_value:.0e} slope={slope:.2f}")
+        slope_per_degree = float(np.polyfit(group["a"], group["cl"], 1)[0])
+        slope_per_radian = slope_per_degree * 180.0 / np.pi
+        if not LIFT_SLOPE_RANGE[0] <= slope_per_radian <= LIFT_SLOPE_RANGE[1]:
+            issues.append(
+                f"{code}@Re{reynolds_value:.0e} slope={slope_per_radian:.2f}/rad"
+            )
     return issues
 
 
