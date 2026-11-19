@@ -490,7 +490,13 @@ np.save(out_dir / 'scaler_y_scale.npy', scaler_y_g.scale_)
 np.save(out_dir / 'scaler_field_mean.npy', field_g.mean_)
 np.save(out_dir / 'scaler_field_scale.npy', field_g.scale_)
 
-# 3. NumPy-friendly weights (consumed by the pure-NumPy runtime)
+# 3. NumPy-friendly weights (consumed by the pure-NumPy runtime).
+#    Move models to CPU first: on a GPU runtime the state-dict tensors live on
+#    cuda:0 and .numpy() raises there. Evaluation is finished by this point,
+#    so the in-place transfer is safe. .eval() freezes BN to running stats,
+#    matching the NumPy inference semantics.
+mlp_grouped = mlp_grouped.cpu().eval()
+field_model = field_model.cpu().eval()
 sd_mlp = mlp_grouped.state_dict()
 sd_fld = field_model.state_dict()
 W = {
