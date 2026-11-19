@@ -1,0 +1,33 @@
+========================================================================
+REAL-CFD DATASET CAMPAIGN (sampler: NACA LHS, 21 airfoils)
+========================================================================
+Airfoils (21) : 0012, 2412, 4412, 1317, 5315, 0008, 1207, 3608, 2515, 6316, 3418, 3208, 6511, 5611, 3612, 6313, 3414, 2612, 1407, 3210, 6211
+Alphas          : [-6.0, -2.0, 2.0, 6.0, 10.0, 14.0]
+Reynolds        : [1000000.0, 2000000.0, 3000000.0, 6000000.0]
+Mesh level      : medium | jobs: 3
+Total cases     : 504
+Resume: 147 cases already done
+  NACA1207_a+2.0_Re1e6                 mesh_failed  CL=+nan CD=nan (1s)
+  NACA1207_a-2.0_Re1e6                 mesh_failed  CL=+nan CD=nan (1s)
+  NACA1207_a-6.0_Re1e6                 mesh_failed  CL=+nan CD=nan (1s)
+  NACA1207_a+6.0_Re1e6                 mesh_failed  CL=+nan CD=nan (1s)
+  NACA1207_a+10.0_Re1e6                mesh_failed  CL=+nan CD=nan (1s)
+  NACA1207_a+14.0_Re1e6                mesh_failed  CL=+nan CD=nan (1s)
+  NACA1207_a+2.0_Re2e6                 mesh_failed  CL=+nan CD=nan (1s)
+  NACA1207_a-2.0_Re2e6                 mesh_failed  CL=+nan CD=nan (1s)
+  NACA1207_a-6.0_Re2e6                 mesh_failed  CL=+nan CD=nan (1s)
+  NACA1207_a+10.0_Re2e6                mesh_failed  CL=+nan CD=nan (1s)
+  NACA1207_a+6.0_Re2e6                 mesh_failed  CL=+nan CD=nan (1s)
+  NACA1207_a+14.0_Re2e6                mesh_failed  CL=+nan CD=nan (1s)
+  NACA1207_a-6.0_Re3e6                 mesh_failed  CL=+nan CD=nan (1s)
+  NACA1207_a-2.0_Re3e6                 mesh_failed  CL=+nan CD=nan (1s)
+  NACA1207_a+2.0_Re3e6                 mesh_failed  CL=+nan CD=nan (1s)
+  NACA1207_a+14.0_Re3e6                mesh_failed  CL=+nan CD=nan (1s)
+  NACA1207_a+6.0_Re3e6                 mesh_failed  CL=+nan CD=nan (1s)
+  NACA1207_a+10.0_Re3e6                mesh_failed  CL=+nan CD=nan (1s)
+  NACA1207_a-2.0_Re6e6                 mesh_failed  CL=+nan CD=nan (1s)
+  NACA1207_a-6.0_Re6e6                 mesh_failed  CL=+nan CD=nan (1s)
+  NACA1207_a+2.0_Re6e6                 mesh_failed  CL=+nan CD=nan (1s)
+  NACA1207_a+6.0_Re6e6                 mesh_failed  CL=+nan CD=nan (1s)
+  NACA1207_a+14.0_Re6e6                mesh_failed  CL=+nan CD=nan (1s)
+  NACA1207_a+10.0_Re6e6                mesh_failed  CL=+nan CD=nan (1s)

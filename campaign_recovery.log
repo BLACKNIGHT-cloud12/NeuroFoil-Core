@@ -1,0 +1,60 @@
+========================================================================
+REAL-CFD DATASET CAMPAIGN (sampler: NACA LHS, 21 airfoils)
+========================================================================
+Airfoils (21) : 0012, 2412, 4412, 1317, 5315, 0008, 1207, 3608, 2515, 6316, 3418, 3208, 6511, 5611, 3612, 6313, 3414, 2612, 1407, 3210, 6211
+Alphas          : [-6.0, -2.0, 2.0, 6.0, 10.0, 14.0]
+Reynolds        : [1000000.0, 2000000.0, 3000000.0, 6000000.0]
+Mesh level      : medium | jobs: 7
+Total cases     : 504
+Resume: 203 cases already done
+========================================================================
+REAL-CFD DATASET CAMPAIGN (sampler: NACA LHS, 21 airfoils)
+========================================================================
+Airfoils (21) : 0012, 2412, 4412, 1317, 5315, 0008, 1207, 3608, 2515, 6316, 3418, 3208, 6511, 5611, 3612, 6313, 3414, 2612, 1407, 3210, 6211
+Alphas          : [-6.0, -2.0, 2.0, 6.0, 10.0, 14.0]
+Reynolds        : [1000000.0, 2000000.0, 3000000.0, 6000000.0]
+Mesh level      : medium | jobs: 6
+Total cases     : 504
+Resume: 203 cases already done
+  NACA0012_a-2.0_Re2e6                 unconverged  CL=-0.2253 CD=0.01009 (569s)
+  NACA0012_a+6.0_Re1e6                 converged    CL=+0.6172 CD=0.01457 (590s)
+  NACA0012_a-2.0_Re3e6                 converged    CL=-0.2141 CD=0.01008 (613s)
+  NACA0012_a+14.0_Re6e6                unconverged  CL=+1.1987 CD=0.03732 (621s)
+  NACA0012_a-2.0_Re6e6                 unconverged  CL=-12.6522 CD=-0.54882 (755s)
+  NACA0012_a-2.0_Re1e6                 converged    CL=-0.1593 CD=0.01322 (863s)
+  NACA2412_a+14.0_Re3e6                converged    CL=+1.5080 CD=0.03031 (594s)
+  NACA2412_a+2.0_Re2e6                 converged    CL=+0.4412 CD=0.01140 (638s)
+  NACA2412_a-2.0_Re2e6                 converged    CL=+0.0168 CD=0.01068 (662s)
+  NACA2412_a-2.0_Re6e6                 converged    CL=+0.0313 CD=0.00870 (588s)
+  NACA2412_a+2.0_Re3e6                 converged    CL=+0.4489 CD=0.01051 (733s)
+  NACA2412_a+2.0_Re6e6                 converged    CL=+0.4579 CD=0.00937 (703s)
+  NACA4412_a-2.0_Re1e6                 converged    CL=+0.1732 CD=0.01447 (488s)
+  NACA2412_a+14.0_Re6e6                converged    CL=+1.5631 CD=0.02719 (586s)
+  NACA4412_a+10.0_Re1e6                converged    CL=+1.3274 CD=0.02509 (602s)
+  NACA4412_a+2.0_Re2e6                 unconverged  CL=+0.6329 CD=0.01603 (497s)
+  NACA4412_a-2.0_Re2e6                 unconverged  CL=+0.0495 CD=0.01296 (564s)
+  NACA4412_a-6.0_Re3e6                 converged    CL=-0.1780 CD=0.01214 (452s)
+  NACA4412_a+14.0_Re2e6                converged    CL=+1.5887 CD=0.03791 (627s)
+  NACA4412_a-2.0_Re3e6                 unconverged  CL=+0.1323 CD=0.01295 (456s)
+  NACA4412_a+14.0_Re3e6                converged    CL=+1.6338 CD=0.03489 (497s)
+  NACA4412_a+2.0_Re6e6                 converged    CL=+0.6945 CD=0.01025 (505s)
+  NACA4412_a+14.0_Re6e6                converged    CL=+1.7021 CD=0.03081 (514s)
+  NACA1317_a-2.0_Re1e6                 unconverged  CL=-0.0891 CD=0.01377 (487s)
+  NACA1317_a+2.0_Re2e6                 converged    CL=+0.2949 CD=0.01241 (493s)
+  NACA1317_a+6.0_Re6e6                 converged    CL=+0.7183 CD=0.01233 (449s)
+  NACA1317_a-6.0_Re6e6                 unconverged  CL=-0.4583 CD=0.01496 (565s)
+  NACA1317_a-2.0_Re6e6                 converged    CL=-0.0962 CD=0.00999 (624s)
+  NACA5315_a-2.0_Re1e6                 unconverged  CL=+0.3020 CD=0.01432 (540s)
+  NACA5315_a+14.0_Re1e6                converged    CL=+1.1985 CD=0.07644 (539s)
+  NACA5315_a+2.0_Re2e6                 converged    CL=+0.7078 CD=0.01401 (535s)
+  NACA5315_a+14.0_Re2e6                converged    CL=+1.3158 CD=0.06407 (584s)
+  NACA5315_a-2.0_Re2e6                 converged    CL=+0.3176 CD=0.01235 (726s)
+  NACA5315_a-6.0_Re6e6                 unconverged  CL=+1.2228 CD=-0.23289 (599s)
+  NACA5315_a-2.0_Re3e6                 converged    CL=+0.3417 CD=0.01066 (630s)
+  NACA5315_a-2.0_Re6e6                 converged    CL=+0.3380 CD=0.01016 (544s)
+  NACA5315_a+6.0_Re6e6                 converged    CL=+1.1414 CD=0.01462 (562s)
+  NACA0008_a-6.0_Re1e6                 unconverged  CL=-0.6270 CD=0.01600 (531s)
+  NACA5315_a+14.0_Re6e6                converged    CL=+1.4734 CD=0.04915 (656s)
+  NACA0008_a+2.0_Re1e6                 unconverged  CL=+1.0502 CD=-0.07829 (602s)
+  NACA0008_a-2.0_Re1e6                 converged    CL=-0.2046 CD=0.01150 (645s)
+  NACA0008_a+10.0_Re1e6                converged    CL=+0.8058 CD=0.04619 (577s)

@@ -1,0 +1,46 @@
+{
+  "schema_ok": true,
+  "grid_complete": true,
+  "n_rows": 505,
+  "n_expected_cases": 504,
+  "n_converged": 203,
+  "physics_flagged": [
+    "NACA0008_a+2.0_Re3e6",
+    "NACA0008_a+2.0_Re6e6",
+    "NACA0008_a-2.0_Re2e6",
+    "NACA0008_a-2.0_Re3e6",
+    "NACA0008_a-2.0_Re6e6",
+    "NACA0012_a-2.0_Re2e6",
+    "NACA0012_a-2.0_Re6e6",
+    "NACA1317_a-6.0_Re6e6",
+    "NACA2515_a+2.0_Re2e6",
+    "NACA2612_a-6.0_Re2e6",
+    "NACA3414_a-6.0_Re3e6",
+    "NACA3418_a+6.0_Re3e6",
+    "NACA3418_a+6.0_Re6e6",
+    "NACA4412_a+2.0_Re2e6",
+    "NACA4412_a-2.0_Re2e6",
+    "NACA5315_a-6.0_Re6e6",
+    "NACA5611_a-2.0_Re3e6",
+    "NACA5611_a-2.0_Re6e6",
+    "NACA6316_a+2.0_Re3e6",
+    "NACA6316_a-2.0_Re6e6",
+    "NACA6511_a-2.0_Re3e6"
+  ],
+  "cp_flagged": [
+    "NACA0008_a+2.0_Re3e6",
+    "NACA0012_a-2.0_Re6e6",
+    "NACA5611_a-2.0_Re6e6",
+    "NACA6316_a+2.0_Re3e6"
+  ],
+  "n_flagged_cases": 21,
+  "findings": [
+    "PASS schema/provenance (505 rows, all unique, 203 converged openfoam rows)",
+    "WARN grid: 1 rows outside the expected grid (e.g. ['NACA0012_a+4.0_Re6e6'])",
+    "INFO physics: auditing 385 completed solver rows; excluding 120 uncomputed failure rows",
+    "FAIL physics: 20 completed rows with CD <= 0",
+    "WARN physics: 4 completed rows with |CL| > 2.2",
+    "WARN cp: 4 cases with |dCp/dx| > 1.5 jumps (e.g. ['NACA0012_a-2.0_Re6e6', 'NACA0008_a+2.0_Re3e6', 'NACA6316_a+2.0_Re3e6'])",
+    "PASS splits: 21 airfoils, 24-25 cases each \u2014 grouped per-airfoil holdout viable"
+  ]
+}
