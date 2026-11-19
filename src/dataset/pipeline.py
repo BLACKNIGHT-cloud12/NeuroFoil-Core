@@ -60,7 +60,12 @@ def run_single_cfd_sample(
     airfoil.save_dat(output_case_dir / "airfoil.dat")
     airfoil.save_metadata(output_case_dir / "airfoil_meta.json")
 
-    # 2. Mesh
+    # 2. Mesh. Adaptive surface-split fallback: a few NACA geometries exceed
+    #    the 70-degree non-orthogonality limit at the default x/c=0.30 C-grid
+    #    split; a forward split (x/c=0.08) recovers them with the same cell
+    #    count, first-cell height, farfield, and mesh level. The split used is
+    #    recorded for provenance.
+    mesh_split_target = 0.30
     meta = generate_blockmesh_dict(
         airfoil=airfoil,
         case_dir=output_case_dir,
@@ -72,6 +77,7 @@ def run_single_cfd_sample(
         n_airfoil_side=int(level_dict["n_airfoil_side"]),
         n_wake=int(level_dict["n_wake"]),
         n_normal=int(level_dict["n_normal"]),
+        x_split_target=mesh_split_target,
     )
     mesh_stats = run_blockmesh_and_checkmesh(
         case_dir=output_case_dir,
@@ -80,6 +86,30 @@ def run_single_cfd_sample(
         openfoam_bashrc=cfg["wsl_environment"]["openfoam_bashrc"],
     )
     if not mesh_stats.mesh_ok:
+        fallback_split = 0.08
+        fallback_meta = generate_blockmesh_dict(
+            airfoil=airfoil,
+            case_dir=output_case_dir,
+            level=mesh_level,
+            farfield_radius=float(mesh_cfg["farfield_radius_chords"]),
+            wake_length=float(mesh_cfg["wake_length_chords"]),
+            span_thickness=float(mesh_cfg["span_thickness_m"]),
+            first_cell_height=float(mesh_cfg.get("first_cell_height_m", 4.0e-6)),
+            n_airfoil_side=int(level_dict["n_airfoil_side"]),
+            n_wake=int(level_dict["n_wake"]),
+            n_normal=int(level_dict["n_normal"]),
+            x_split_target=fallback_split,
+        )
+        fallback_stats = run_blockmesh_and_checkmesh(
+            case_dir=output_case_dir,
+            meta=fallback_meta,
+            wsl_distro=cfg["wsl_environment"]["distro"],
+            openfoam_bashrc=cfg["wsl_environment"]["openfoam_bashrc"],
+        )
+        if fallback_stats.mesh_ok:
+            mesh_stats = fallback_stats
+            mesh_split_target = fallback_split
+    if not mesh_stats.mesh_ok:
         return {
             "success": False,
             "status": "mesh_failed",
@@ -87,6 +117,7 @@ def run_single_cfd_sample(
             "n_cells": mesh_stats.n_cells,
             "max_non_ortho": mesh_stats.max_non_orthogonality_deg,
             "max_skewness": mesh_stats.max_skewness,
+            "mesh_split_target": mesh_split_target,
             **provenance,
         }
 
@@ -158,6 +189,7 @@ def run_single_cfd_sample(
         "status": conv.status,
         "cp_available": cp_data["available"],
         "success": True,
+        "mesh_split_target": mesh_split_target,
         **provenance,
     }
     record.update(ml_feats)
@@ -166,6 +198,7 @@ def run_single_cfd_sample(
         "record": record,
         "cp_data": cp_data,
         "success": True,
+        "mesh_split_target": mesh_split_target,
     }
 
 

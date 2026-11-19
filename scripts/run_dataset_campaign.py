@@ -64,6 +64,9 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--jobs", type=int, default=3, help="Concurrent WSL solver instances")
     p.add_argument("--limit", type=int, default=0, help="Stop after N new cases (0 = no limit)")
     p.add_argument("--seed", type=int, default=42)
+    p.add_argument("--max-iterations", type=int, default=0,
+                   help="Override solver max_iterations (0 = config value 3000); "
+                        "use 6000 to recover unconverged cases")
     p.add_argument("--manifest", type=str, default="",
                    help="Path to an active-learning manifest JSON (overrides --sampler)")
     return p.parse_args()
@@ -305,6 +308,10 @@ class Store:
 def main() -> None:
     args = parse_args()
     cfg = load_config()
+    if args.max_iterations:
+        # In-memory override only; the case builder reads this config key and
+        # every persisted record stores the budget actually used.
+        cfg["solver"]["max_iterations"] = int(args.max_iterations)
 
     alphas = [float(a.strip()) for a in args.alphas.split(",") if a.strip()]
     reynolds_list = [float(r.strip()) for r in args.res.split(",") if r.strip()]
@@ -351,7 +358,11 @@ def main() -> None:
     print(f"Mesh level      : {args.mesh_level} | jobs: {args.jobs}")
     print(f"Total cases     : {total}")
 
-    existing = pd.read_csv(CSV_PATH) if CSV_PATH.exists() else pd.DataFrame()
+    # String dtypes preserve leading zeros in NACA codes ("0012") across resumes.
+    existing = (
+        pd.read_csv(CSV_PATH, dtype={"case_id": str, "naca_code": str, "airfoil_code": str})
+        if CSV_PATH.exists() else pd.DataFrame()
+    )
 
     cp_store: dict[str, dict[str, np.ndarray]] = {}
     x_grid: np.ndarray | None = None
@@ -425,6 +436,9 @@ def main() -> None:
         record.setdefault("is_synthetic", False)
         record.setdefault("solver_backend", "simpleFoam")
         record.setdefault("mesh_level", args.mesh_level)
+        record.setdefault("mesh_split_target",
+                          result.get("mesh_split_target", 0.30))
+        record.setdefault("max_iterations", int(cfg["solver"]["max_iterations"]))
         record.setdefault("case_id", case_id)
         record.setdefault("success", True)
         record["wall_time_s"] = round(elapsed, 1)
