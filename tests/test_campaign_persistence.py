@@ -223,6 +223,7 @@ def _main_args(limit: int = 0) -> Namespace:
         limit=limit,
         seed=42,
         manifest="",
+        max_iterations=0,
     )
 
 
@@ -235,7 +236,8 @@ def test_main_filters_pending_before_applying_limit(
         [{"case_id": "NACA0012_a+0.0_Re1e6", "success": True, "cp_available": False, "status": "done"}]
     ).to_csv(csv_path, index=False)
     monkeypatch.setattr(campaign, "parse_args", lambda: _main_args(limit=1))
-    monkeypatch.setattr(campaign, "load_config", lambda: object())
+    monkeypatch.setattr(campaign, "load_config",
+                        lambda: {"solver": {"max_iterations": 3000}})
     monkeypatch.setattr(campaign, "sample_airfoil_codes", lambda *_: ["0012", "2412", "4412"])
     monkeypatch.setattr(campaign, "cleanup_case_dir", lambda _: None)
     attempted: list[str] = []
@@ -257,7 +259,8 @@ def test_main_adds_openfoam_provenance_to_success_and_failure_records(
 ) -> None:
     csv_path, _ = _patch_store_paths(monkeypatch, tmp_path)
     monkeypatch.setattr(campaign, "parse_args", lambda: _main_args())
-    monkeypatch.setattr(campaign, "load_config", lambda: object())
+    monkeypatch.setattr(campaign, "load_config",
+                        lambda: {"solver": {"max_iterations": 3000}})
     monkeypatch.setattr(campaign, "sample_airfoil_codes", lambda *_: ["0012"])
     monkeypatch.setattr(campaign, "cleanup_case_dir", lambda _: None)
 
@@ -291,7 +294,8 @@ def test_main_preserves_existing_provenance_values(
 ) -> None:
     csv_path, _ = _patch_store_paths(monkeypatch, tmp_path)
     monkeypatch.setattr(campaign, "parse_args", lambda: _main_args())
-    monkeypatch.setattr(campaign, "load_config", lambda: object())
+    monkeypatch.setattr(campaign, "load_config",
+                        lambda: {"solver": {"max_iterations": 3000}})
     monkeypatch.setattr(campaign, "sample_airfoil_codes", lambda *_: ["0012"])
     monkeypatch.setattr(campaign, "cleanup_case_dir", lambda _: None)
     monkeypatch.setattr(

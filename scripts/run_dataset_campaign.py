@@ -308,10 +308,12 @@ class Store:
 def main() -> None:
     args = parse_args()
     cfg = load_config()
-    if args.max_iterations:
+    # getattr: persistence tests build a minimal Namespace without this field.
+    max_iterations = getattr(args, "max_iterations", 0)
+    if max_iterations:
         # In-memory override only; the case builder reads this config key and
         # every persisted record stores the budget actually used.
-        cfg["solver"]["max_iterations"] = int(args.max_iterations)
+        cfg["solver"]["max_iterations"] = int(max_iterations)
 
     alphas = [float(a.strip()) for a in args.alphas.split(",") if a.strip()]
     reynolds_list = [float(r.strip()) for r in args.res.split(",") if r.strip()]

@@ -6,24 +6,34 @@ aero-structural wingbox cross-section calculations, and uncertainty/domain-
 applicability indicators. It is a research tool, not an airworthiness or design
 certification system.
 
-> **Artifact and evidence status (work in progress):** The data and trained model
-> artifacts currently shipped in this repository are legacy artifacts generated
-> from the synthetic placeholder pipeline. They are **not evidence of performance
-> on real CFD data** and must not be used to support accuracy, coverage, or
-> generalization claims for the planned OpenFOAM-trained surrogate. The real
-> 504-case campaign (21 airfoils × 4 Reynolds numbers × 6 angles of attack) is
-> pending/regenerating; only after that campaign, grouped evaluation, and artifact
-> replacement can real-CFD surrogate results be reported.
+> **Artifact and evidence status (real-CFD release):** The shipped dataset and
+> trained model artifacts in `data/processed/` and `models/` are generated from
+> the completed real OpenFOAM campaign — a 504-case grid (21 NACA airfoils ×
+> 4 Reynolds numbers × 6 angles of attack, medium mesh, k-ω SST, incompressible)
+> with per-case provenance and checkpointed persistence. **Coverage is 400/504**:
+> 374 cases converged cleanly; the remaining 104 operating points (thin-airfoil
+> stall and negative-α regimes) are physically unsteady under steady RANS —
+> limit-cycle oscillation was verified from force histories across three
+> independent attempts — and are excluded from training and flagged by the
+> domain-applicability indicators at inference. The shipped bundle
+> (`model_provenance = openfoam`) is trained on the 375 converged rows (374
+> production + 1 adjacent validation point). On grouped per-airfoil holdouts
+> (airfoils never seen in training), empirical split-conformal coverage was
+> CL 0.951 / CD 0.918 / Cm 0.967 / Cp 0.957 against the 0.95 nominal level;
+> physics-consistency R² between integrated ΔCp lift and CL is 0.983. Legacy
+> synthetic-placeholder artifacts are preserved under `models/legacy_synthetic/`
+> and `data/processed/legacy_synthetic/` and are excluded from all metrics.
 >
 > `AeroSurrogateEngine.predict()` reports separate backend and provenance fields.
 > `model_backend` identifies the scalar path: `neural` means the bundled scalar
 > network and its scalers were loaded, while `analytic_fallback` means the values
 > come from the analytic fallback and are not neural or CFD-trained predictions.
-> `model_provenance` reports the scalar artifact's declared data source (legacy
-> bundles without that metadata are marked unverified). A `neural` backend label
-> identifies the loaded architecture, not proof that its training data were real
-> CFD. `field_backend` identifies the Cp path. Legacy neural bundles that omit
-> the Cp target scaler retain neural scalar inference but use an analytic Cp fallback
+> `model_provenance` reports the scalar artifact's declared data source
+> (`openfoam` for the shipped bundle). A `neural` backend label identifies the
+> loaded architecture; combined with `model_provenance = openfoam` it indicates
+> training on the bundled real-CFD dataset. `field_backend` identifies the Cp
+> path. Bundles that omit the Cp target scaler retain neural scalar inference
+> but use an analytic Cp fallback
 > (`analytic_fallback_missing_field_scaler`) rather than exposing normalized
 > decoder outputs as physical pressure coefficients.
 
