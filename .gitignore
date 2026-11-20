@@ -23,3 +23,9 @@ Thumbs.db
 
 # Mesh sensitivity study case dirs (summary JSON lives in reports/)
 data/mesh_study/*
+report/*.aux
+report/*.log
+report/*.out
+report/report.pdf
+report/cover_tmp.pdf
+report/*.toc
