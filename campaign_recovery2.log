@@ -22,3 +22,40 @@ Reynolds        : [1000000.0, 2000000.0, 3000000.0, 6000000.0]
 Mesh level      : medium | jobs: 6
 Total cases     : 504
 Resume: 383 cases already done
+========================================================================
+REAL-CFD DATASET CAMPAIGN (sampler: NACA LHS, 21 airfoils)
+========================================================================
+Airfoils (21) : 0012, 2412, 4412, 1317, 5315, 0008, 1207, 3608, 2515, 6316, 3418, 3208, 6511, 5611, 3612, 6313, 3414, 2612, 1407, 3210, 6211
+Alphas          : [-6.0, -2.0, 2.0, 6.0, 10.0, 14.0]
+Reynolds        : [1000000.0, 2000000.0, 3000000.0, 6000000.0]
+Mesh level      : medium | jobs: 6
+Total cases     : 504
+Resume: 383 cases already done
+PYTHONUNBUFFERED=1: command not found
+========================================================================
+REAL-CFD DATASET CAMPAIGN (sampler: NACA LHS, 21 airfoils)
+========================================================================
+Airfoils (21) : 0012, 2412, 4412, 1317, 5315, 0008, 1207, 3608, 2515, 6316, 3418, 3208, 6511, 5611, 3612, 6313, 3414, 2612, 1407, 3210, 6211
+Alphas          : [-6.0, -2.0, 2.0, 6.0, 10.0, 14.0]
+Reynolds        : [1000000.0, 2000000.0, 3000000.0, 6000000.0]
+Mesh level      : medium | jobs: 6
+Total cases     : 504
+Resume: 383 cases already done
+  NACA0008_a+2.0_Re2e6                 unconverged  CL=+0.1783 CD=0.01129 (553s)
+  NACA0008_a-6.0_Re1e6                 unconverged  CL=-0.6270 CD=0.01600 (571s)
+  NACA0008_a+14.0_Re1e6                unconverged  CL=+0.5424 CD=0.14877 (579s)
+  NACA0008_a-2.0_Re2e6                 unconverged  CL=-0.2543 CD=0.00958 (582s)
+  NACA0008_a+10.0_Re2e6                unconverged  CL=+0.8777 CD=0.03682 (607s)
+  NACA0008_a+2.0_Re1e6                 unconverged  CL=+1.0502 CD=-0.07829 (785s)
+  NACA0008_a+6.0_Re3e6                 unconverged  CL=+0.6346 CD=0.01338 (573s)
+  NACA0008_a-2.0_Re3e6                 unconverged  CL=-0.0203 CD=0.00952 (604s)
+  NACA0008_a+14.0_Re2e6                unconverged  CL=+0.6042 CD=0.15683 (628s)
+  NACA0008_a+10.0_Re3e6                unconverged  CL=+0.8479 CD=0.03496 (615s)
+  NACA0008_a+2.0_Re3e6                 unconverged  CL=+0.6965 CD=-0.03984 (744s)
+  NACA0008_a+14.0_Re3e6                unconverged  CL=+0.6956 CD=0.17490 (667s)
+  NACA0008_a+2.0_Re6e6                 unconverged  CL=-0.3021 CD=-0.01386 (565s)
+  NACA0008_a+6.0_Re6e6                 unconverged  CL=+0.6284 CD=0.01137 (627s)
+  NACA0008_a-2.0_Re6e6                 unconverged  CL=+1.0321 CD=-0.01699 (693s)
+  NACA1207_a+2.0_Re1e6                 unconverged  CL=+0.7203 CD=-0.03245 (638s)
+  NACA0008_a+14.0_Re6e6                unconverged  CL=+0.5841 CD=0.14725 (744s)
+  NACA1207_a+14.0_Re1e6                unconverged  CL=+1.0122 CD=0.08023 (518s)
