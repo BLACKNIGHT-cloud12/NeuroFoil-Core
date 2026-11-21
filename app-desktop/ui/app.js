@@ -115,19 +115,19 @@ function drawCp() {
   const ys = scale([lo, hi], [H - padB, padT]);
 
   for (let g = Math.ceil(lo * 2) / 2; g <= hi; g += 0.5) {
-    svgEl("line", { x1: padL, x2: W - padR, y1: ys(g), y2: ys(g), stroke: "#232527", "stroke-width": 0.6 }, svg);
-    svgEl("text", { x: padL - 8, y: ys(g) + 3.5, "text-anchor": "end", fill: "#9BA1AB",
+    svgEl("line", { x1: padL, x2: W - padR, y1: ys(g), y2: ys(g), stroke: "#D9DDE2", "stroke-width": 0.6 }, svg);
+    svgEl("text", { x: padL - 8, y: ys(g) + 3.5, "text-anchor": "end", fill: "#5C6E8C",
       "font-size": 10, "font-family": "JetBrains Mono, monospace" }, svg).textContent = g.toFixed(1);
   }
   for (const g of [0, 0.25, 0.5, 0.75, 1]) {
-    svgEl("line", { x1: xs(g), x2: xs(g), y1: padT, y2: H - padB, stroke: "#232527", "stroke-width": 0.6 }, svg);
-    svgEl("text", { x: xs(g), y: H - padB + 16, "text-anchor": "middle", fill: "#9BA1AB",
+    svgEl("line", { x1: xs(g), x2: xs(g), y1: padT, y2: H - padB, stroke: "#D9DDE2", "stroke-width": 0.6 }, svg);
+    svgEl("text", { x: xs(g), y: H - padB + 16, "text-anchor": "middle", fill: "#5C6E8C",
       "font-size": 10, "font-family": "JetBrains Mono, monospace" }, svg).textContent = g.toFixed(2);
   }
-  svgEl("line", { x1: padL, x2: padL, y1: padT, y2: H - padB, stroke: "#3A3D42", "stroke-width": 1 }, svg);
-  svgEl("line", { x1: padL, x2: W - padR, y1: H - padB, y2: H - padB, stroke: "#3A3D42", "stroke-width": 1 }, svg);
-  svgEl("text", { x: W / 2, y: H - 4, "text-anchor": "middle", fill: "#9BA1AB", "font-size": 10.5 }, svg).textContent = "x/c";
-  svgEl("text", { x: 12, y: padT + 4, fill: "#9BA1AB", "font-size": 10.5 }, svg).textContent = "Cp";
+  svgEl("line", { x1: padL, x2: padL, y1: padT, y2: H - padB, stroke: "#6E757E", "stroke-width": 1 }, svg);
+  svgEl("line", { x1: padL, x2: W - padR, y1: H - padB, y2: H - padB, stroke: "#6E757E", "stroke-width": 1 }, svg);
+  svgEl("text", { x: W / 2, y: H - 4, "text-anchor": "middle", fill: "#5C6E8C", "font-size": 10.5 }, svg).textContent = "x/c";
+  svgEl("text", { x: 12, y: padT + 4, fill: "#5C6E8C", "font-size": 10.5 }, svg).textContent = "Cp";
 
   const clipId = "cp-clip";
   const defs = svgEl("defs", {}, svg);
@@ -143,13 +143,13 @@ function drawCp() {
       .reverse().map((s) => s.replace(/^M/, "L")).join(" ");
     svgEl("path", { d: up + " " + dn + " Z", fill, stroke: "none" }, plotG);
   };
-  ribbon(cpU, bU, bUh, "rgba(255,152,56,0.12)");
-  ribbon(cpL, bL, bLh, "rgba(255,152,56,0.12)");
+  ribbon(cpU, bU, bUh, "rgba(194,94,30,0.10)");
+  ribbon(cpL, bL, bLh, "rgba(194,94,30,0.10)");
 
   svgEl("path", { d: poly(cpU.map((v, i) => [i / (cpU.length - 1), v])), fill: "none",
-    stroke: "#FF9838", "stroke-width": 1.6, "clip-path": `url(#${clipId})` }, plotG);
+    stroke: "#C25E1E", "stroke-width": 1.6, "clip-path": `url(#${clipId})` }, plotG);
   svgEl("path", { d: poly(cpL.map((v, i) => [i / (cpL.length - 1), v])), fill: "none",
-    stroke: "#FF9838", "stroke-width": 1.6, opacity: 0.85, "clip-path": `url(#${clipId})` }, plotG);
+    stroke: "#C25E1E", "stroke-width": 1.6, opacity: 0.85, "clip-path": `url(#${clipId})` }, plotG);
 }
 
 /* ---------- gauge ---------- */
@@ -166,20 +166,20 @@ function drawGauge(mahal) {
     svgEl("path", { d: `M${x0.toFixed(1)},${y0.toFixed(1)} A${r},${r} 0 0 1 ${x1.toFixed(1)},${y1.toFixed(1)}`,
       fill: "none", stroke, "stroke-width": width }, svg);
   };
-  arc(0, maxV, R, "#232527", 10);
-  arc(0, MAHAL_P99, R, "rgba(111,207,151,0.75)", 10);
-  arc(MAHAL_P99, MAHAL_CHI2, R, "rgba(255,180,84,0.8)", 10);
-  arc(MAHAL_CHI2, maxV, R, "rgba(255,107,107,0.8)", 10);
+  arc(0, maxV, R, "#D9DDE2", 10);
+  arc(0, MAHAL_P99, R, "rgba(46,125,79,0.8)", 10);
+  arc(MAHAL_P99, MAHAL_CHI2, R, "rgba(181,119,14,0.8)", 10);
+  arc(MAHAL_CHI2, maxV, R, "rgba(179,53,44,0.8)", 10);
   for (const [v, lbl] of [[0, "0"], [MAHAL_P99, "p99"], [MAHAL_CHI2, "χ²"], [maxV, fmt(maxV, 1)]]) {
     const [tx, ty] = pt(v, R + 18);
-    svgEl("text", { x: tx, y: ty + 3, "text-anchor": "middle", fill: "#9BA1AB",
+    svgEl("text", { x: tx, y: ty + 3, "text-anchor": "middle", fill: "#5C6E8C",
       "font-size": 9, "font-family": "JetBrains Mono, monospace" }, svg).textContent = lbl;
   }
   const [nx, ny] = pt(mahal ?? 0, R - 16);
-  svgEl("line", { x1: cx, y1: cy, x2: nx, y2: ny, stroke: "#F5F7FA", "stroke-width": 2, "stroke-linecap": "round" }, svg);
-  svgEl("circle", { cx, cy, r: 4, fill: "#F5F7FA" }, svg);
+  svgEl("line", { x1: cx, y1: cy, x2: nx, y2: ny, stroke: "#1A1D21", "stroke-width": 2, "stroke-linecap": "round" }, svg);
+  svgEl("circle", { cx, cy, r: 4, fill: "#1A1D21" }, svg);
   const [, vy] = pt(mahal ?? 0, R - 34);
-  svgEl("text", { x: cx, y: vy + 26, "text-anchor": "middle", fill: "#F5F7FA",
+  svgEl("text", { x: cx, y: vy + 26, "text-anchor": "middle", fill: "#1A1D21",
     "font-size": 15, "font-family": "JetBrains Mono, monospace", "font-weight": 600 }, svg)
     .textContent = mahal == null ? "—" : fmt(mahal, 2);
 }
@@ -193,7 +193,7 @@ function drawAirfoilMini(res) {
   const ys = scale([-0.12, 0.12], [108, 12]);
   const poly = (pts) => pts.map(([vx, vy], i) => `${i ? "L" : "M"}${xs(vx).toFixed(1)},${ys(vy).toFixed(1)}`).join(" ");
   svgEl("path", { d: poly(upper) + " " + poly(lower.slice().reverse()).replace(/^M/, "L") + " Z",
-    fill: "rgba(255,152,56,0.08)", stroke: "#FF9838", "stroke-width": 1.1 }, svg);
+    fill: "rgba(194,94,30,0.06)", stroke: "#C25E1E", "stroke-width": 1.1 }, svg);
   const wb = res && res.wingbox;
   if (!wb) return;
   if (Array.isArray(wb.fuel_bay_outline) && wb.fuel_bay_outline.length > 2) {
@@ -216,7 +216,7 @@ function drawAirfoilMini(res) {
     const seg = wb[key];
     if (Array.isArray(seg) && seg.length > 1) {
       svgEl("path", { d: poly(seg.map(([vx, vy]) => [vx, vy])), fill: "none",
-        stroke: "#FFB454", "stroke-width": 2.2 }, svg);
+        stroke: "#B5770E", "stroke-width": 2.2 }, svg);
     }
   }
 }
@@ -263,31 +263,31 @@ function miniChart(svgId, series, yLabel, opts = {}) {
   const ys = scale([lo, hi], [H - padB, padT]);
   for (const g of [0, 0.25, 0.5, 0.75, 1]) {
     const gy = padT + g * (H - padB - padT);
-    svgEl("line", { x1: padL, x2: W - padR, y1: gy, y2: gy, stroke: "#232527", "stroke-width": 0.6 }, svg);
-    svgEl("text", { x: padL - 6, y: gy + 3, "text-anchor": "end", fill: "#9BA1AB", "font-size": 9,
+    svgEl("line", { x1: padL, x2: W - padR, y1: gy, y2: gy, stroke: "#D9DDE2", "stroke-width": 0.6 }, svg);
+    svgEl("text", { x: padL - 6, y: gy + 3, "text-anchor": "end", fill: "#5C6E8C", "font-size": 9,
       "font-family": "JetBrains Mono, monospace" }, svg).textContent = fmt(hi - g * (hi - lo), 2);
   }
   for (const a of [-6, -2, 2, 6, 10, 14, 16]) {
-    svgEl("line", { x1: xs(a), x2: xs(a), y1: padT, y2: H - padB, stroke: "#232527", "stroke-width": 0.6 }, svg);
-    svgEl("text", { x: xs(a), y: H - padB + 14, "text-anchor": "middle", fill: "#9BA1AB", "font-size": 9,
+    svgEl("line", { x1: xs(a), x2: xs(a), y1: padT, y2: H - padB, stroke: "#D9DDE2", "stroke-width": 0.6 }, svg);
+    svgEl("text", { x: xs(a), y: H - padB + 14, "text-anchor": "middle", fill: "#5C6E8C", "font-size": 9,
       "font-family": "JetBrains Mono, monospace" }, svg).textContent = a;
   }
   const path = series.map((v, i) => `${i ? "L" : "M"}${xs(-6 + (32 * i) / (series.length - 1)).toFixed(1)},${ys(v).toFixed(1)}`).join(" ");
-  svgEl("path", { d: path, fill: "none", stroke: "#FF9838", "stroke-width": 1.6 }, svg);
+  svgEl("path", { d: path, fill: "none", stroke: "#C25E1E", "stroke-width": 1.6 }, svg);
   if (opts.marker != null && isFinite(opts.marker)) {
     const mx = xs(opts.marker);
-    svgEl("line", { x1: mx, x2: mx, y1: padT, y2: H - padB, stroke: "#FFB454", "stroke-width": 1.2, "stroke-dasharray": "4 3" }, svg);
+    svgEl("line", { x1: mx, x2: mx, y1: padT, y2: H - padB, stroke: "#B5770E", "stroke-width": 1.2, "stroke-dasharray": "4 3" }, svg);
   }
   if (opts.maxMarker) {
     let bi = 0;
     for (let i = 1; i < series.length; i++) if (series[i] > series[bi]) bi = i;
     const bx = -6 + (32 * bi) / (series.length - 1);
-    svgEl("circle", { cx: xs(bx), cy: ys(series[bi]), r: 3.5, fill: "#6FCF97" }, svg);
-    svgEl("text", { x: xs(bx) + 6, y: ys(series[bi]) - 6, fill: "#6FCF97", "font-size": 9.5,
+    svgEl("circle", { cx: xs(bx), cy: ys(series[bi]), r: 3.5, fill: "#2E7D4F" }, svg);
+    svgEl("text", { x: xs(bx) + 6, y: ys(series[bi]) - 6, fill: "#2E7D4F", "font-size": 9.5,
       "font-family": "JetBrains Mono, monospace" }, svg).textContent = `${fmt(series[bi], 2)} @ ${fmt(bx, 1)}°`;
   }
-  svgEl("text", { x: W / 2, y: H - 2, "text-anchor": "middle", fill: "#9BA1AB", "font-size": 10 }, svg).textContent = "α (deg)";
-  svgEl("text", { x: 8, y: padT + 2, fill: "#9BA1AB", "font-size": 10 }, svg).textContent = yLabel;
+  svgEl("text", { x: W / 2, y: H - 2, "text-anchor": "middle", fill: "#5C6E8C", "font-size": 10 }, svg).textContent = "α (deg)";
+  svgEl("text", { x: 8, y: padT + 2, fill: "#5C6E8C", "font-size": 10 }, svg).textContent = yLabel;
 }
 
 
@@ -301,16 +301,16 @@ function drawWingboxSection(res) {
   const ys = scale([-0.13, 0.13], [182, 18]);
   const poly = (pts) => pts.map(([vx, vy], i) => `${i ? "L" : "M"}${xs(vx).toFixed(1)},${ys(vy).toFixed(1)}`).join(" ");
   svgEl("path", { d: poly(upper) + " " + poly(lower.slice().reverse()).replace(/^M/, "L") + " Z",
-    fill: "rgba(255,152,56,0.07)", stroke: "#FF9838", "stroke-width": 1.2 }, svg);
-  svgEl("line", { x1: xs(0), x2: xs(1), y1: ys(0), y2: ys(0), stroke: "#3A3D42", "stroke-width": 0.7, "stroke-dasharray": "5 3" }, svg);
+    fill: "rgba(255,152,56,0.07)", stroke: "#C25E1E", "stroke-width": 1.2 }, svg);
+  svgEl("line", { x1: xs(0), x2: xs(1), y1: ys(0), y2: ys(0), stroke: "#6E757E", "stroke-width": 0.7, "stroke-dasharray": "5 3" }, svg);
   const wb = res && res.wingbox;
   if (!wb) return;
   const spar = (key, label, lx, anchor) => {
     const seg = wb[key];
     if (!Array.isArray(seg) || seg.length < 2) return;
     svgEl("path", { d: poly(seg.map(([vx, vy]) => [vx, vy])), fill: "rgba(255,180,84,0.15)",
-      stroke: "#FFB454", "stroke-width": 2 }, svg);
-    svgEl("text", { x: xs(lx), y: anchor, "text-anchor": "middle", fill: "#FFB454",
+      stroke: "#B5770E", "stroke-width": 2 }, svg);
+    svgEl("text", { x: xs(lx), y: anchor, "text-anchor": "middle", fill: "#B5770E",
       "font-size": 9.5, "font-family": "JetBrains Mono, monospace" }, svg).textContent = label;
   };
   spar("front_spar_coords", "FRONT SPAR", wb.x_front_spar, 172);
@@ -323,12 +323,12 @@ function drawWingboxSection(res) {
     for (let i = i1; i >= i0; i--) bay.push([lower[Math.min(100, i)][0], lower[Math.min(100, i)][1]]);
     svgEl("path", { d: poly(bay) + " Z", fill: "rgba(111,207,151,0.14)",
       stroke: "rgba(111,207,151,0.5)", "stroke-width": 0.8, "stroke-dasharray": "4 2" }, svg);
-    svgEl("text", { x: xs((x0 + x1) / 2), y: ys(-0.045), "text-anchor": "middle", fill: "#6FCF97",
+    svgEl("text", { x: xs((x0 + x1) / 2), y: ys(-0.045), "text-anchor": "middle", fill: "#2E7D4F",
       "font-size": 9.5, "font-family": "JetBrains Mono, monospace" }, svg).textContent = "FUEL BAY";
   }
-  svgEl("text", { x: xs(0), y: 12, fill: "#9BA1AB", "font-size": 9,
+  svgEl("text", { x: xs(0), y: 12, fill: "#5C6E8C", "font-size": 9,
     "font-family": "JetBrains Mono, monospace" }, svg).textContent = "LE";
-  svgEl("text", { x: xs(1), y: 12, "text-anchor": "end", fill: "#9BA1AB",
+  svgEl("text", { x: xs(1), y: 12, "text-anchor": "end", fill: "#5C6E8C",
     "font-family": "JetBrains Mono, monospace", "font-size": 9 }, svg).textContent = "TE";
 }
 
@@ -342,7 +342,7 @@ const hero = (() => {
   renderer.toneMappingExposure = 1.1;
 
   const scene = new THREE.Scene();
-  scene.fog = new THREE.FogExp2(0x0b1220, 0.10);
+  scene.fog = new THREE.FogExp2(0xEFEDF1, 0.09);
   const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 100);
 
   const composer = new EffectComposer(
@@ -358,12 +358,12 @@ const hero = (() => {
   composer.addPass(new OutputPass());
 
   const key = new THREE.DirectionalLight(0xffffff, 2.4); key.position.set(2.5, 3, 4);
-  const rim = new THREE.DirectionalLight(0x5ab0ff, 1.6); rim.position.set(-3, 1.2, -2.5);
+  const rim = new THREE.DirectionalLight(0x8496b0, 1.2); rim.position.set(-3, 1.2, -2.5);
   scene.add(key, rim, new THREE.AmbientLight(0xffffff, 0.38));
 
-  const grid = new THREE.GridHelper(7, 28, 0x24344d, 0x1a2940);
+  const grid = new THREE.GridHelper(7, 28, 0xb8bdc4, 0xd5d8dd);
   grid.position.y = -0.42;
-  grid.material.transparent = true; grid.material.opacity = 0.35;
+  grid.material.transparent = true; grid.material.opacity = 0.55;
   scene.add(grid);
 
   // ---- morphable wing: rings of profile points along the span ----
@@ -478,7 +478,7 @@ const hero = (() => {
         new Float32Array(STREAM_SEGMENTS * 3), 3));
       const line = new THREE.Line(geo, new THREE.LineBasicMaterial({
         vertexColors: true, transparent: true, opacity: 0.9,
-        blending: THREE.AdditiveBlending, depthWrite: false,
+        blending: THREE.NormalBlending, depthWrite: false,
       }));
       line.userData = { y0, z, phase: Math.random() };
       streamlines.push({ y0, z, geo, line, phase: line.userData.phase });
@@ -589,11 +589,11 @@ const hero = (() => {
       const col = s.geo.attributes.color.array;
       for (let i = 0; i < STREAM_SEGMENTS; i++) {
         const u = i / (STREAM_SEGMENTS - 1);
-        const base = 0.28 + 0.1 * Math.sin(u * 18 + s.phase * 9);
-        const p = pulse(u) * 0.95 + 0.06;
-        col[i * 3] = base * 0.35 + p * 1.0;
-        col[i * 3 + 1] = base * 0.42 + p * 0.62;
-        col[i * 3 + 2] = base * 0.62 + p * 0.35;
+        const base = 0.30 + 0.06 * Math.sin(u * 18 + s.phase * 9);
+        const p = pulse(u) * 0.9;
+        col[i * 3] = base * 0.35 + p * 0.76;
+        col[i * 3 + 1] = base * 0.42 + p * 0.37;
+        col[i * 3 + 2] = base * 0.62 + p * 0.11;
       }
       s.geo.attributes.color.needsUpdate = true;
     }

@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>NeuroFoil — Flight Deck</title>
-<link rel="stylesheet" href="/static/styles.css">
+<link rel="stylesheet" href="/static/styles.css?v=21">
 <script>
 window.__errs = [];
 window.addEventListener("error", (e) => window.__errs.push(`${e.message} @ ${e.filename}:${e.lineno}`));
@@ -94,7 +94,7 @@ window.addEventListener("unhandledrejection", (e) => window.__errs.push(`rejecti
     <div class="hero3d">
       <canvas id="wing-canvas"></canvas>
       <i class="corner c-tl"></i><i class="corner c-tr"></i><i class="corner c-bl"></i><i class="corner c-br"></i>
-      <div class="hero-hint">drag to orbit · scroll to zoom · surface painted by C<sub>p</sub></div>
+      <div class="hero-hint">drag to rotate · scroll to zoom · surface coloured by C<sub>p</sub> field</div>
       <div class="hero-alpha" id="hero-alpha">α +4.0°</div>
       <div class="hero-colorbar">
         <span>suction</span>
@@ -177,6 +177,6 @@ window.addEventListener("unhandledrejection", (e) => window.__errs.push(`rejecti
   </aside>
 </main>
 
-<script type="module" src="/static/app.js"></script>
+<script type="module" src="/static/app.js?v=21"></script>
 </body>
 </html>
