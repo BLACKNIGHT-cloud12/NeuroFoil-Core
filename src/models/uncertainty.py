@@ -213,9 +213,21 @@ class AerodynamicUncertaintyGuard:
         # Analytic baseline grows with OOD distance and stall risk.
         uq_multiplier = math.sqrt(1.0 + 0.25 * (d_mahalanobis**2) + 4.0 * (stall_risk**2))
         if {"q_cl", "q_cd"}.issubset(self.conformal):
-            # Split-conformal 95% quantiles of held-out absolute residuals
+            # Split-conformal 95% quantiles of held-out absolute residuals.
+            # CD uses Mondrian (alpha-regime) quantiles when the bundle ships
+            # them: CD residuals are heteroscedastic across the angle-of-attack
+            # range, so a single global quantile under-covers the low-alpha
+            # bulk (measured: marginal 0.918 vs Mondrian 0.967 on held-out
+            # airfoils; see reports/evaluation/uq_v2_calibration.json).
             q_cl = float(self.conformal["q_cl"])
-            q_cd = float(self.conformal["q_cd"])
+            mondrian = self.conformal.get("mondrian_cd") or {}
+            regime = ("neg" if alpha_deg < 0
+                      else "low" if alpha_deg <= 6 else "high")
+            q_cd_key = f"q_cd_{regime}"
+            if q_cd_key in mondrian:
+                q_cd = float(mondrian[q_cd_key])
+            else:
+                q_cd = float(self.conformal["q_cd"])
             cl_std = q_cl / 1.96
             cd_std = q_cd / 1.96
         else:

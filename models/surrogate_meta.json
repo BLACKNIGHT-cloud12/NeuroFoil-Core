@@ -536,7 +536,15 @@
       0.16140678524971008,
       0.15365172922611237,
       0.15274278819561005
-    ]
+    ],
+    "mondrian_cd": {
+      "q_cd_neg": 0.006954503676581174,
+      "q_cd_low": 0.002827146564837799,
+      "q_cd_high": 0.010668542481946697
+    },
+    "mondrian_note": "alpha-regime CD quantiles (neg: alpha<0, low: 0<=alpha<=6, high: alpha>6) computed on the 52-row calibration split; addresses CD under-coverage (marginal 0.918 vs Mondrian 0.967 on held-out airfoils)",
+    "simultaneous_lambda_cp": 1.2390758250458724,
+    "cp_band_type": "pointwise"
   },
   "bounds": {
     "m": [

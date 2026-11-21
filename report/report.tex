@@ -59,7 +59,24 @@ calibration set. Second, pointwise coverage is not simultaneous coverage: the
 per-station band contains the complete Cp curve of only 49.2\% of held-out
 cases, and the measured inflation factor for a 95\% simultaneous band is
 $2.02\times$ (descriptive, test-set). The shipped band is therefore labelled
-as pointwise in the application.At inference, queries far from the training manifold are flagged by a
+as pointwise in the application.
+
+\textbf{UQ v2 --- regime-conditional calibration.} The CD under-coverage
+was addressed with Mondrian (regime-conditional) conformal quantiles: the
+52-row calibration split is partitioned into three angle-of-attack regimes
+(negative, $0^{\circ}$--$6^{\circ}$, above $6^{\circ}$) and CD quantiles
+are computed per regime (0.377 / 0.283 / 1.067 for neg/low/high --- the
+high-$\alpha$ regime carries the largest CD residuals, as suspected from
+the heteroscedasticity diagnosis). On the untouched test rows,
+regime-conditional CD coverage rises from 0.918 to 0.967 (nominal 0.95);
+CL and CM coverage are unchanged by the regime split. A max-statistic
+simultaneous Cp band calibrated on the same rows ($\lambda = 1.24$) is
+also measured; on extrapolation airfoils its simultaneous coverage remains
+below nominal, so the shipped band stays pointwise and is labelled as
+such, with joint coverage listed as the v2 target alongside a larger
+calibration set.
+
+At inference, queries far from the training manifold are flagged by a
 Mahalanobis domain guard rather than answered with false confidence.
 
 The dataset, trained bundle, quality-control tooling, mesh-sensitivity study,

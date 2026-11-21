@@ -1,0 +1,55 @@
+{
+  "calibration_rows": 52,
+  "test_rows": 61,
+  "test_airfoils": [
+    "3414",
+    "5315",
+    "5611"
+  ],
+  "calibration_airfoils": [
+    "3608",
+    "4412",
+    "6511"
+  ],
+  "marginal_quantiles_reproduced": {
+    "cl": 0.22875520833124985,
+    "cd": 0.006954503676581174,
+    "cm": 0.03895339397561737
+  },
+  "marginal_coverage_on_test": {
+    "cl": 0.9508196721311475,
+    "cd": 0.9180327868852459,
+    "cm": 0.9672131147540983
+  },
+  "mondrian_regimes": {
+    "neg": {
+      "n": 19,
+      "q_cl": 0.3767248486830369,
+      "q_cd": 0.006954503676581174,
+      "q_cm": 0.030253290185764087
+    },
+    "low": {
+      "n": 20,
+      "q_cl": 0.22875520833124985,
+      "q_cd": 0.002827146564837799,
+      "q_cm": 0.04098004937309746
+    },
+    "high": {
+      "n": 13,
+      "q_cl": 0.1971501104778659,
+      "q_cd": 0.010668542481946697,
+      "q_cm": 0.03624635767040521
+    }
+  },
+  "mondrian_coverage_on_test": {
+    "cl": 1.0,
+    "cd": 0.9672131147540983,
+    "cm": 0.9180327868852459
+  },
+  "cp": {
+    "pointwise_coverage_on_test": 0.9453721616943285,
+    "simultaneous_coverage_marginal_band_on_test": 0.5901639344262295,
+    "simultaneous_lambda_from_calibration": 1.2390758250458724,
+    "note": "lambda is the 95th percentile of per-case max(|err|/band) over calibration rows; the scaled band is then evaluated on untouched test rows"
+  }
+}
