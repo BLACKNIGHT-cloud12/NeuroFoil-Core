@@ -29,3 +29,4 @@ report/*.out
 report/report.pdf
 report/cover_tmp.pdf
 report/*.toc
+app-desktop/node_modules/

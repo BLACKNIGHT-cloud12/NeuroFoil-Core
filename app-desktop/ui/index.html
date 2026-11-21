@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NeuroFoil — Flight Deck</title>
+<link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+<header class="deck-head">
+  <div class="wordmark">NEUROFOIL<span class="wordmark-sub">FLIGHT DECK</span></div>
+  <div class="head-status">
+    <div class="chip" id="provenance-chip">…</div>
+    <div class="chip chip-quiet" id="fingerprint-chip">…</div>
+  </div>
+</header>
+
+<main class="deck">
+  <!-- LEFT: instrument rail -->
+  <aside class="rail rail-left">
+    <section class="panel">
+      <h2 class="panel-title">Geometry</h2>
+      <div class="presets" id="presets"></div>
+      <label class="ctl">
+        <span class="ctl-name">Camber <b id="v-m">0.020</b></span>
+        <input type="range" id="in-m" min="0" max="0.06" step="0.005" value="0.02">
+      </label>
+      <label class="ctl">
+        <span class="ctl-name">Camber position <b id="v-p">0.40</b></span>
+        <input type="range" id="in-p" min="0.2" max="0.6" step="0.05" value="0.4">
+      </label>
+      <label class="ctl">
+        <span class="ctl-name">Thickness <b id="v-t">0.120</b></span>
+        <input type="range" id="in-t" min="0.06" max="0.18" step="0.005" value="0.12">
+      </label>
+      <div class="naca-readout">NACA <b id="v-code">2412</b></div>
+    </section>
+
+    <section class="panel">
+      <h2 class="panel-title">Conditions</h2>
+      <label class="ctl">
+        <span class="ctl-name">Angle of attack <b id="v-alpha">+4.0°</b></span>
+        <input type="range" id="in-alpha" min="-6" max="14" step="0.5" value="4">
+      </label>
+      <label class="ctl">
+        <span class="ctl-name">Reynolds number</span>
+      </label>
+      <div class="re-row" id="re-row"></div>
+    </section>
+
+    <section class="panel">
+      <h2 class="panel-title">Airfoil section</h2>
+      <svg id="airfoil-mini" viewBox="0 0 240 120" preserveAspectRatio="xMidYMid meet"></svg>
+    </section>
+  </aside>
+
+  <!-- CENTER: primary flight display -->
+  <section class="pfd">
+    <div class="readout-row">
+      <div class="readout"><span class="ro-label">LIFT&nbsp;C<sub>L</sub></span><span class="ro-value" id="ro-cl">—</span><span class="ro-band" id="band-cl">—</span></div>
+      <div class="readout"><span class="ro-label">DRAG&nbsp;C<sub>D</sub></span><span class="ro-value" id="ro-cd">—</span><span class="ro-band" id="band-cd">—</span></div>
+      <div class="readout"><span class="ro-label">PITCH&nbsp;C<sub>M</sub></span><span class="ro-value" id="ro-cm">—</span><span class="ro-band" id="band-cm">—</span></div>
+      <div class="readout"><span class="ro-label">L/D</span><span class="ro-value" id="ro-ld">—</span><span class="ro-band ro-band-quiet">best guess</span></div>
+    </div>
+
+    <div class="cp-block">
+      <div class="cp-head">
+        <h2 class="panel-title">Surface pressure — C<sub>p</sub>(x/c)</h2>
+        <span class="legend"><i class="sw sw-line"></i>surrogate<i class="sw sw-band"></i>95% conformal band</span>
+      </div>
+      <svg id="cp-chart" viewBox="0 0 760 340" preserveAspectRatio="xMidYMid meet"></svg>
+    </div>
+
+    <nav class="bay-tabs" id="bay-tabs">
+      <button class="tab is-active" data-tab="polar">Polar sweep</button>
+      <button class="tab" data-tab="wingbox">Wingbox</button>
+      <button class="tab" data-tab="search">Design search</button>
+    </nav>
+    <div class="bay" id="bay-polar">
+      <div class="polar-grid">
+        <svg id="polar-cl" viewBox="0 0 400 240" preserveAspectRatio="xMidYMid meet"></svg>
+        <svg id="polar-ld" viewBox="0 0 400 240" preserveAspectRatio="xMidYMid meet"></svg>
+      </div>
+    </div>
+    <div class="bay is-hidden" id="bay-wingbox">
+      <div class="wingbox-grid">
+        <svg id="wingbox-sec" viewBox="0 0 480 200" preserveAspectRatio="xMidYMid meet"></svg>
+        <div class="wingbox-readouts" id="wingbox-readouts"></div>
+      </div>
+    </div>
+    <div class="bay is-hidden" id="bay-search">
+      <div class="search-grid">
+        <div class="search-form">
+          <label>C<sub>L</sub> target <input id="s-cl" type="number" value="0.50" step="0.05" min="0.1" max="1.4"></label>
+          <label>t range <input id="s-tmin" type="number" value="0.10" step="0.01" min="0.06" max="0.18"> – <input id="s-tmax" type="number" value="0.16" step="0.01" min="0.06" max="0.18"></label>
+          <label>m max <input id="s-mmax" type="number" value="0.04" step="0.005" min="0" max="0.06"></label>
+          <button class="btn-run" id="s-run">Run constrained search</button>
+          <div class="search-status" id="s-status">SLSQP · maximize L/D under lift + wingbox constraints</div>
+        </div>
+        <div class="search-result" id="s-result">No run yet.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- RIGHT: domain applicability -->
+  <aside class="rail rail-right">
+    <section class="panel">
+      <h2 class="panel-title">Domain applicability</h2>
+      <svg id="ood-gauge" viewBox="0 0 220 150" preserveAspectRatio="xMidYMid meet"></svg>
+      <div class="ood-verdict" id="ood-verdict">—</div>
+      <dl class="uq-mini">
+        <div><dt>confidence</dt><dd id="uq-conf">—</dd></div>
+        <div><dt>Mahalanobis D</dt><dd id="uq-mahal">—</dd></div>
+        <div><dt>calibration n</dt><dd id="uq-caln">—</dd></div>
+      </dl>
+    </section>
+    <section class="panel panel-warn">
+      <h2 class="panel-title">Advisories</h2>
+      <ul class="warn-list" id="warn-list"><li class="warn-empty">All stations nominal.</li></ul>
+    </section>
+    <section class="panel">
+      <h2 class="panel-title">Backend</h2>
+      <dl class="uq-mini">
+        <div><dt>scalar path</dt><dd id="bk-model">—</dd></div>
+        <div><dt>Cp path</dt><dd id="bk-field">—</dd></div>
+        <div><dt>provenance</dt><dd id="bk-prov">—</dd></div>
+      </dl>
+      <p class="disclaimer">Research-use estimates. Not airworthiness or design certification.</p>
+    </section>
+  </aside>
+</main>
+
+<script src="/static/app.js"></script>
+</body>
+</html>

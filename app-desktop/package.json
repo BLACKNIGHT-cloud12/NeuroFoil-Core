@@ -1,0 +1,13 @@
+{
+  "name": "neurofoil-flight-deck",
+  "version": "1.0.0",
+  "description": "NeuroFoil desktop flight deck \u2014 local FastAPI sidecar + Electron shell",
+  "main": "main.js",
+  "scripts": {
+    "start": "ELECTRON_DISABLE_SANDBOX=1 electron .",
+    "backend": "python3 -m uvicorn server:app --host 127.0.0.1 --port 8765"
+  },
+  "devDependencies": {
+    "electron": "^33.4.11"
+  }
+}
