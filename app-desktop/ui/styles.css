@@ -358,3 +358,34 @@ input[type="number"]:focus-visible { outline: 1px solid var(--ember); }
 .load-flash { animation: panel-in 0.45s ease-out 1; }
 @keyframes panel-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .load-flash { animation: none; } }
+
+/* ================= range bars (readout cards) ================= */
+.range-bar {
+  position: relative; height: 6px; border-radius: 3px;
+  background: var(--paper-deep);
+  border: 1px solid var(--line);
+  margin: 4px 0 5px;
+  overflow: hidden;
+}
+.rb-band {
+  position: absolute; top: 0; bottom: 0;
+  background: rgba(194, 94, 30, 0.22);
+}
+.rb-dot {
+  position: absolute; top: 50%; width: 9px; height: 9px;
+  transform: translate(-50%, -50%);
+  background: var(--ember); border-radius: 50%;
+  border: 1px solid var(--sheet);
+  box-shadow: 0 0 6px rgba(194, 94, 30, 0.45);
+  z-index: 1;
+}
+.rb-extents {
+  display: flex; justify-content: space-between; align-items: baseline;
+  font-family: var(--mono); font-size: 9px; color: var(--ink-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+
+/* value + conformal band on one line */
+.ro-line { display: flex; align-items: baseline; gap: 9px; }
+.ro-line .ro-band { font-size: 10.5px; color: var(--ink-faint); }

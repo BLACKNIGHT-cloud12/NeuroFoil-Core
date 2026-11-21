@@ -156,32 +156,38 @@ function drawCp() {
 function drawGauge(mahal) {
   const svg = $("ood-gauge");
   svg.innerHTML = "";
-  const cx = 110, cy = 122, R = 78;
-  const a0 = Math.PI, a1 = 0;
+  const cx = 110, cy = 118, R = 76;
   const maxV = Math.max(MAHAL_CHI2 * 1.35, (mahal || 0) * 1.15, 2);
-  const ang = (v) => a0 + ((Math.min(v, maxV) / maxV) * (a1 - a0));
-  const pt = (v, r) => [cx + r * Math.cos(ang(v)), cy + r * Math.sin(ang(v))];
+  // speedometer convention: value sweeps left -> right over the TOP arc
+  const phi = (v) => Math.PI + (Math.min(v, maxV) / maxV) * Math.PI;
+  const pt = (v, r) => [cx + r * Math.cos(phi(v)), cy + r * Math.sin(phi(v))];
   const arc = (v0, v1, r, stroke, width) => {
     const [x0, y0] = pt(v0, r), [x1, y1] = pt(v1, r);
-    svgEl("path", { d: `M${x0.toFixed(1)},${y0.toFixed(1)} A${r},${r} 0 0 1 ${x1.toFixed(1)},${y1.toFixed(1)}`,
+    svgEl("path", { d: `M${x0.toFixed(1)},${y0.toFixed(1)} A${r},${r} 0 0 0 ${x1.toFixed(1)},${y1.toFixed(1)}`,
       fill: "none", stroke, "stroke-width": width }, svg);
   };
-  arc(0, maxV, R, "#D9DDE2", 10);
-  arc(0, MAHAL_P99, R, "rgba(46,125,79,0.8)", 10);
-  arc(MAHAL_P99, MAHAL_CHI2, R, "rgba(181,119,14,0.8)", 10);
-  arc(MAHAL_CHI2, maxV, R, "rgba(179,53,44,0.8)", 10);
-  for (const [v, lbl] of [[0, "0"], [MAHAL_P99, "p99"], [MAHAL_CHI2, "χ²"], [maxV, fmt(maxV, 1)]]) {
-    const [tx, ty] = pt(v, R + 18);
-    svgEl("text", { x: tx, y: ty + 3, "text-anchor": "middle", fill: "#5C6E8C",
-      "font-size": 9, "font-family": "JetBrains Mono, monospace" }, svg).textContent = lbl;
+  arc(0, maxV, R, "#D9DDE2", 10);          // track
+  arc(0, MAHAL_P99, R, "rgba(46,125,79,0.85)", 10);   // safe (green, low end)
+  arc(MAHAL_P99, MAHAL_CHI2, R, "rgba(181,119,14,0.85)", 10);  // caution
+  arc(MAHAL_CHI2, maxV, R, "rgba(179,53,44,0.85)", 10);        // danger (high end)
+  for (const [v, lbl] of [[0, "0"], [maxV, fmt(maxV, 1)]]) {
+    const [tx, ty] = pt(v, R + 16);
+    svgEl("text", { x: tx, y: ty + 4, "text-anchor": "middle", fill: "#5C6E8C",
+      "font-size": 10, "font-family": "IBM Plex Mono, monospace" }, svg).textContent = lbl;
   }
-  const [nx, ny] = pt(mahal ?? 0, R - 16);
-  svgEl("line", { x1: cx, y1: cy, x2: nx, y2: ny, stroke: "#1A1D21", "stroke-width": 2, "stroke-linecap": "round" }, svg);
-  svgEl("circle", { cx, cy, r: 4, fill: "#1A1D21" }, svg);
-  const [, vy] = pt(mahal ?? 0, R - 34);
-  svgEl("text", { x: cx, y: vy + 26, "text-anchor": "middle", fill: "#1A1D21",
-    "font-size": 15, "font-family": "JetBrains Mono, monospace", "font-weight": 600 }, svg)
-    .textContent = mahal == null ? "—" : fmt(mahal, 2);
+  // tick at the chi2 threshold
+  const [tx, ty] = pt(MAHAL_CHI2, R - 8);
+  const [tx2, ty2] = pt(MAHAL_CHI2, R + 8);
+  svgEl("line", { x1: tx, y1: ty, x2: tx2, y2: ty2, stroke: "#1A1D21", "stroke-width": 1.2 }, svg);
+  // needle from the pivot, sweeping over the top
+  const [nx, ny] = pt(mahal ?? 0, R - 18);
+  svgEl("line", { x1: cx, y1: cy + 6, x2: nx, y2: ny, stroke: "#1A1D21",
+    "stroke-width": 2.2, "stroke-linecap": "round" }, svg);
+  svgEl("circle", { cx, cy: cy + 2, r: 4.5, fill: "#1A1D21" }, svg);
+  const value = mahal == null ? "—" : fmt(mahal, 2);
+  svgEl("text", { x: cx, y: cy - 26, "text-anchor": "middle", fill: "#1A1D21",
+    "font-size": 16, "font-family": "IBM Plex Mono, monospace", "font-weight": 500 }, svg)
+    .textContent = value;
 }
 
 /* ---------- airfoil mini + wingbox (small panels snap) ---------- */
