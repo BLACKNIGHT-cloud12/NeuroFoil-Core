@@ -444,3 +444,28 @@ input[type="number"]:focus-visible { outline: 1px solid var(--ember); }
 }
 .ood-verdict.v-change { animation: verdict-in 320ms ease-out 1; }
 @keyframes verdict-in { from { opacity: 0.15; transform: translateY(3px); } to { opacity: 1; transform: none; } }
+
+
+/* ================= range-bar readouts ================= */
+.range-bar {
+  position: relative; height: 6px; border-radius: 3px;
+  background: rgba(11, 12, 13, 0.85);
+  border: 1px solid var(--hairline);
+  margin: 3px 0 5px;
+  overflow: hidden;
+}
+.rb-band {
+  position: absolute; top: 0; bottom: 0;
+  background: rgba(228, 231, 235, 0.22);
+}
+.rb-dot {
+  position: absolute; top: 50%; width: 9px; height: 9px;
+  transform: translate(-50%, -50%);
+  background: var(--ember); border-radius: 50%;
+  box-shadow: 0 0 8px rgba(255, 152, 56, 0.55);
+}
+.rb-extents {
+  display: flex; justify-content: space-between; align-items: baseline;
+  font-family: var(--mono); font-size: 9px; color: var(--faint);
+  font-variant-numeric: tabular-nums;
+}

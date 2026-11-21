@@ -31,6 +31,21 @@ app = FastAPI(title="NeuroFoil Flight Deck", docs_url=None, redoc_url=None)
 engine = AeroSurrogateEngine()
 FINGERPRINT = f"{engine.model_provenance}:{engine.meta.get('trained_at', 'no-artifact-metadata')}"
 
+# Observed coefficient ranges from the converged campaign rows — the readout
+# range bars are scaled against these so "where am I" is dataset-honest.
+try:
+    import pandas as pd
+
+    _conv = pd.read_csv(PROJECT_ROOT / "data/processed/airfoil_cfd_dataset.csv")
+    _conv = _conv[_conv["status"] == "converged"]
+    DATASET_RANGES = {
+        key: [float(_conv[key].min()), float(_conv[key].max())]
+        for key in ("cl", "cd", "cm", "lift_to_drag")
+        if key in _conv.columns
+    }
+except Exception:  # noqa: BLE001
+    DATASET_RANGES = {}
+
 
 def _num(value: Any, default: float | None = None) -> float | None:
     try:
@@ -115,6 +130,7 @@ def meta() -> dict[str, Any]:
         "field_calibration_n": engine.meta.get("conformal", {}).get(
             "field_calibration_n"),
         "trained_at": engine.meta.get("trained_at"),
+        "ranges": DATASET_RANGES,
     }
 
 

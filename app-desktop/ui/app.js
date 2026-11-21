@@ -84,6 +84,7 @@ function lerpInto(disp, tgt, k) {
 
 /* ---------- state ---------- */
 const state = { m: 0.02, p: 0.4, t: 0.12, alpha: 4.0, reynolds: 6000000 };
+const ranges = { cl: null, cd: null, cm: null, ld: null };
 const PRESETS = [
   { code: "0012", m: 0.0, p: 0.2, t: 0.12 },
   { code: "2412", m: 0.02, p: 0.4, t: 0.12 },
@@ -578,6 +579,33 @@ const hero = (() => {
 /* ---------- master loop ---------- */
 let lastT = performance.now();
 let cpDirty = true, polarDirty = true, gaugeDirty = true;
+function drawRangeBars() {
+  const cards = [
+    { key: "cl", val: display.cl, lo: display.clCi[0], hi: display.clCi[1], band: true },
+    { key: "cd", val: display.cd, lo: display.cdCi[0], hi: display.cdCi[1], band: true },
+    { key: "cm", val: display.cm, lo: display.cmCi[0], hi: display.cmCi[1], band: true },
+    { key: "ld", val: display.ld, lo: null, hi: null, band: false },
+  ];
+  for (const c of cards) {
+    const rng = ranges[c.key];
+    if (!rng || rng[1] === rng[0]) continue;
+    const dot = $(`rb-${c.key}-dot`);
+    if (!dot) continue;
+    const pos = THREE.MathUtils.clamp(
+      ((c.val - rng[0]) / (rng[1] - rng[0])) * 100, 0, 100);
+    dot.style.left = pos.toFixed(2) + "%";
+    if (c.band) {
+      const band = $(`rb-${c.key}-band`);
+      if (band && isFinite(c.lo) && isFinite(c.hi)) {
+        const b0 = THREE.MathUtils.clamp(((c.lo - rng[0]) / (rng[1] - rng[0])) * 100, 0, 100);
+        const b1 = THREE.MathUtils.clamp(((c.hi - rng[0]) / (rng[1] - rng[0])) * 100, 0, 100);
+        band.style.left = Math.min(b0, b1).toFixed(2) + "%";
+        band.style.width = Math.abs(b1 - b0).toFixed(2) + "%";
+      }
+    }
+  }
+}
+
 function halfBand(lo, hi) {
   let s = 0, n = 0;
   for (let i = 0; i < lo.length; i++) { s += Math.abs((hi[i] ?? 0) - (lo[i] ?? 0)); n++; }
@@ -597,6 +625,7 @@ function loop(now) {
     $("band-cl").textContent = `± ${fmt((display.clCi[1] - display.clCi[0]) / 2, 3)}`;
     $("band-cd").textContent = `± ${fmtSci((display.cdCi[1] - display.cdCi[0]) / 2, 2)}`;
     $("band-cm").textContent = `± ${fmt((display.cmCi[1] - display.cmCi[0]) / 2, 3)}`;
+    drawRangeBars();
     cpDirty = false;
   }
   if (moving || polarDirty) {
@@ -762,6 +791,13 @@ function syncLabels() {
 }
 
 function wireControls() {
+  function positionTabIndicator() {
+    const active = document.querySelector(".tab.is-active");
+    const indicator = $("tab-indicator");
+    if (!active || !indicator) return;
+    indicator.style.left = active.offsetLeft + "px";
+    indicator.style.width = active.offsetWidth + "px";
+  }
   const presets = $("presets");
   for (const pr of PRESETS) {
     const b = document.createElement("button");
@@ -859,6 +895,15 @@ async function boot() {
     $("provenance-chip").textContent = `provenance: ${meta.model_provenance}`;
     $("fingerprint-chip").textContent = `artifact ${meta.artifact_fingerprint}`;
     $("uq-caln").textContent = meta.calibration_n ?? "—";
+    const r = meta.ranges || {};
+    for (const [key, el] of Object.entries({ cl: "cl", cd: "cd", cm: "cm", ld: "ld" })) {
+      const rng = r[key];
+      if (rng) {
+        ranges[key] = rng;
+        $(`rb-${key}-min`).textContent = fmt(rng[0], key === "ld" ? 1 : 3);
+        $(`rb-${key}-max`).textContent = fmt(rng[1], key === "ld" ? 1 : 3);
+      }
+    }
     $("bk-model").textContent = meta.model_backend;
     $("bk-prov").textContent = meta.model_provenance;
   } catch {
