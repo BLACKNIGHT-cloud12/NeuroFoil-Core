@@ -661,9 +661,15 @@ function setPredictTargets(res) {
   }
   const verdict = $("ood-verdict");
   const mahal = target.mahal;
-  if (uq.is_ood) { verdict.textContent = "OUT OF DOMAIN"; verdict.className = "ood-verdict warn"; }
-  else if (mahal > MAHAL_P99) { verdict.textContent = "NEAR BOUNDARY"; verdict.className = "ood-verdict caution"; }
-  else { verdict.textContent = "IN DOMAIN"; verdict.className = "ood-verdict ok"; }
+  let nextVerdict;
+  if (uq.is_ood) nextVerdict = ["OUT OF DOMAIN", "ood-verdict warn"];
+  else if (mahal > MAHAL_P99) nextVerdict = ["NEAR BOUNDARY", "ood-verdict caution"];
+  else nextVerdict = ["IN DOMAIN", "ood-verdict ok"];
+  if (verdict.textContent !== nextVerdict[0]) {
+    verdict.className = nextVerdict[1] + " v-change";
+    setTimeout(() => verdict.classList.remove("v-change"), 360);
+  }
+  verdict.textContent = nextVerdict[0];
   const warnList = $("warn-list");
   warnList.innerHTML = "";
   const warnings = uq.warnings || [];
@@ -713,6 +719,29 @@ async function runPolar() {
   } catch { /* keep last polar */ }
 }
 
+/* ---------- interaction upgrades ---------- */
+function updateFill(el) {
+  const min = parseFloat(el.min), max = parseFloat(el.max);
+  const pct = ((parseFloat(el.value) - min) / (max - min)) * 100;
+  el.style.setProperty("--fill", pct.toFixed(2) + "%");
+}
+const bubble = $("slider-bubble");
+let bubbleHideTimer = null;
+const FORMATS = { m: 3, p: 2, t: 3, alpha: 1 };
+function showBubble(el) {
+  const key = el.id.replace("in-", "");
+  const val = parseFloat(el.value);
+  bubble.textContent = key === "alpha"
+    ? `α ${val >= 0 ? "+" : ""}${val.toFixed(1)}°` : val.toFixed(FORMATS[key]);
+  const rect = el.getBoundingClientRect();
+  const pct = (val - parseFloat(el.min)) / (parseFloat(el.max) - parseFloat(el.min));
+  bubble.style.left = (rect.left + 9 + pct * (rect.width - 18)) + "px";
+  bubble.style.top = (rect.top - 34) + "px";
+  bubble.classList.add("show");
+  clearTimeout(bubbleHideTimer);
+  bubbleHideTimer = setTimeout(() => bubble.classList.remove("show"), 1100);
+}
+
 /* ---------- controls ---------- */
 function syncLabels() {
   $("v-m").textContent = state.m.toFixed(3);
@@ -753,27 +782,44 @@ function wireControls() {
     b.addEventListener("click", () => {
       state.reynolds = re; syncLabels(); schedulePredict(); schedulePolar();
     });
+    b.addEventListener("mousedown", () => b.classList.add("pressed"));
+    b.addEventListener("mouseup", () => b.classList.remove("pressed"));
+    b.addEventListener("mouseleave", () => b.classList.remove("pressed"));
     reRow.append(b);
   }
   for (const id of ["in-m", "in-p", "in-t", "in-alpha"]) {
-    $(id).addEventListener("input", (e) => {
+    const el = $(id);
+    updateFill(el);
+    el.addEventListener("input", (e) => {
       const key = id.replace("in-", "");
       state[key] = parseFloat(e.target.value);
-      syncLabels();
+      updateFill(el); showBubble(el); syncLabels();
       if (key === "alpha") { hero.setAlpha(state.alpha); schedulePredict(); }
       else { hero.setWingTarget(state.m, state.p, state.t); schedulePredict(); schedulePolar(); }
     });
+    el.addEventListener("mousedown", () => showBubble(el));
+    el.addEventListener("focus", () => showBubble(el));
   }
+  window.addEventListener("resize", positionTabIndicator);
+  const indicator = $("tab-indicator");
+  window.positionTabIndicator = () => {
+    const active = document.querySelector(".tab.is-active");
+    if (!active || !indicator) return;
+    indicator.style.left = active.offsetLeft + "px";
+    indicator.style.width = active.offsetWidth + "px";
+  };
+  positionTabIndicator();
   $("bay-tabs").addEventListener("click", (e) => {
     const btn = e.target.closest(".tab");
     if (!btn) return;
     for (const t of document.querySelectorAll(".tab")) t.classList.toggle("is-active", t === btn);
+    positionTabIndicator();
     for (const bay of document.querySelectorAll(".bay")) bay.classList.add("is-hidden");
     $(`bay-${btn.dataset.tab}`).classList.remove("is-hidden");
   });
   $("s-run").addEventListener("click", async () => {
     const btn = $("s-run");
-    btn.disabled = true;
+    btn.disabled = true; btn.classList.add("is-busy"); btn.classList.remove("is-ok");
     $("s-status").textContent = "SLSQP running — maximizing L/D …";
     try {
       const res = await post("/api/optimize", {
@@ -789,10 +835,14 @@ function wireControls() {
         `<div class="opt-bad">constraints met: ${res.constraints_met ?? "—"}</div>` +
         `<div>optimum (m,p,t,α): ${arrStr(op)}</div>`;
       $("s-status").textContent = res.solver_message || "done";
+      btn.classList.remove("is-busy"); btn.classList.add("is-ok");
+      setTimeout(() => btn.classList.remove("is-ok"), 1100);
     } catch (err) {
       $("s-result").textContent = String(err.message || err);
       $("s-status").textContent = "search failed";
-    } finally { btn.disabled = false; }
+    } finally {
+      btn.disabled = false; btn.classList.remove("is-busy");
+    }
   });
 }
 

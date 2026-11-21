@@ -16,6 +16,7 @@ window.addEventListener("unhandledrejection", (e) => window.__errs.push(`rejecti
 </script>
 </head>
 <body>
+<div class="slider-bubble" id="slider-bubble">—</div>
 <header class="deck-head">
   <div class="wordmark">NEUROFOIL<span class="wordmark-sub">FLIGHT DECK</span></div>
   <div class="head-status">
@@ -90,7 +91,7 @@ window.addEventListener("unhandledrejection", (e) => window.__errs.push(`rejecti
       <svg id="cp-chart" viewBox="0 0 760 340" preserveAspectRatio="xMidYMid meet"></svg>
     </div>
 
-    <nav class="bay-tabs" id="bay-tabs">
+    <nav class="bay-tabs" id="bay-tabs"><span class="tab-indicator" id="tab-indicator"></span>
       <button class="tab is-active" data-tab="polar">Polar sweep</button>
       <button class="tab" data-tab="wingbox">Wingbox</button>
       <button class="tab" data-tab="search">Design search</button>
