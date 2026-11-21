@@ -222,6 +222,7 @@ function drawAirfoilMini(res) {
 
 function drawWingbox(res) {
   drawAirfoilMini(res);
+  drawWingboxSection(res);
   const host = $("wingbox-readouts");
   const wb = res && res.wingbox;
   if (!wb) { host.innerHTML = "<div class='opt-bad'>wingbox unavailable for this geometry</div>"; return; }
@@ -287,6 +288,49 @@ function miniChart(svgId, series, yLabel, opts = {}) {
   svgEl("text", { x: W / 2, y: H - 2, "text-anchor": "middle", fill: "#7A8AA5", "font-size": 10 }, svg).textContent = "α (deg)";
   svgEl("text", { x: 8, y: padT + 2, fill: "#7A8AA5", "font-size": 10 }, svg).textContent = yLabel;
 }
+
+
+/* wingbox cross-section schematic (bigger, labeled) */
+function drawWingboxSection(res) {
+  const svg = $("wingbox-sec");
+  if (!svg) return;
+  svg.innerHTML = "";
+  const { upper, lower } = nacaPoints(state.m, state.p, state.t, 100);
+  const xs = scale([0, 1], [26, 454]);
+  const ys = scale([-0.13, 0.13], [182, 18]);
+  const poly = (pts) => pts.map(([vx, vy], i) => `${i ? "L" : "M"}${xs(vx).toFixed(1)},${ys(vy).toFixed(1)}`).join(" ");
+  svgEl("path", { d: poly(upper) + " " + poly(lower.slice().reverse()).replace(/^M/, "L") + " Z",
+    fill: "rgba(90,176,255,0.08)", stroke: "#5AB0FF", "stroke-width": 1.2 }, svg);
+  svgEl("line", { x1: xs(0), x2: xs(1), y1: ys(0), y2: ys(0), stroke: "#24344D", "stroke-width": 0.7, "stroke-dasharray": "5 3" }, svg);
+  const wb = res && res.wingbox;
+  if (!wb) return;
+  const spar = (key, label, lx, anchor) => {
+    const seg = wb[key];
+    if (!Array.isArray(seg) || seg.length < 2) return;
+    svgEl("path", { d: poly(seg.map(([vx, vy]) => [vx, vy])), fill: "rgba(255,180,84,0.15)",
+      stroke: "#FFB454", "stroke-width": 2 }, svg);
+    svgEl("text", { x: xs(lx), y: anchor, "text-anchor": "middle", fill: "#FFB454",
+      "font-size": 9.5, "font-family": "JetBrains Mono, monospace" }, svg).textContent = label;
+  };
+  spar("front_spar_coords", "FRONT SPAR", wb.x_front_spar, 172);
+  spar("rear_spar_coords", "REAR SPAR", wb.x_rear_spar, 172);
+  if (wb.x_front_spar != null && wb.x_rear_spar != null) {
+    const x0 = wb.x_front_spar, x1 = wb.x_rear_spar;
+    const i0 = Math.round(x0 * 100), i1 = Math.round(x1 * 100);
+    const bay = [];
+    for (let i = i0; i <= i1; i++) bay.push([upper[Math.min(100, i)][0], upper[Math.min(100, i)][1]]);
+    for (let i = i1; i >= i0; i--) bay.push([lower[Math.min(100, i)][0], lower[Math.min(100, i)][1]]);
+    svgEl("path", { d: poly(bay) + " Z", fill: "rgba(111,207,151,0.14)",
+      stroke: "rgba(111,207,151,0.5)", "stroke-width": 0.8, "stroke-dasharray": "4 2" }, svg);
+    svgEl("text", { x: xs((x0 + x1) / 2), y: ys(-0.045), "text-anchor": "middle", fill: "#6FCF97",
+      "font-size": 9.5, "font-family": "JetBrains Mono, monospace" }, svg).textContent = "FUEL BAY";
+  }
+  svgEl("text", { x: xs(0), y: 12, fill: "#7A8AA5", "font-size": 9,
+    "font-family": "JetBrains Mono, monospace" }, svg).textContent = "LE";
+  svgEl("text", { x: xs(1), y: 12, "text-anchor": "end", fill: "#7A8AA5",
+    "font-family": "JetBrains Mono, monospace", "font-size": 9 }, svg).textContent = "TE";
+}
+
 
 /* ---------- three.js hero: morphing wing + flow particles ---------- */
 const hero = (() => {
