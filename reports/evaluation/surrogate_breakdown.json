@@ -464,5 +464,35 @@
     "n_holdout_cases": 61,
     "upper_max_station_err": 1.0845160660266842,
     "lower_max_station_err": 1.0571724087365175
+  },
+  "uq_analysis": {
+    "cl": {
+      "covered": 58,
+      "n": 61,
+      "wilson95": [
+        0.9231,
+        0.9358
+      ]
+    },
+    "cd": {
+      "covered": 56,
+      "n": 61,
+      "wilson95": [
+        0.8904,
+        0.9064
+      ]
+    },
+    "cm": {
+      "covered": 59,
+      "n": 61,
+      "wilson95": [
+        0.9398,
+        0.9502
+      ]
+    },
+    "cp_pointwise_coverage": 0.9571326748803585,
+    "cp_simultaneous_coverage": 0.4918032786885246,
+    "cp_simultaneous_descriptive_k95": 2.0199067503157635,
+    "note": "pointwise = per-station marginal coverage; simultaneous = fraction of cases whose ENTIRE Cp curve lies inside the band; k95 is measured on the test set and is descriptive only"
   }
 }

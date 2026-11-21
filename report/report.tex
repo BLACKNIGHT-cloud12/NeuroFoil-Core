@@ -50,7 +50,16 @@ on unseen geometries, and integrating its predicted pressure jump reproduces
 the predicted lift with $R^2 = 0.983$ (physics consistency). Empirical
 split-conformal coverage on the unseen-airfoil test set is 0.951 ($C_L$),
 0.918 ($C_D$), 0.967 ($C_m$) and 0.957 ($C_p$) against the 0.95 nominal level.
-At inference, queries far from the training manifold are flagged by a
+Two distinctions are reported rather than smoothed over. First, the $C_D$
+interval under-covers: its Wilson 95\% interval [0.890, 0.906] excludes 0.95,
+because $C_D$ residuals are heteroscedastic across the angle-of-attack range
+and a single global quantile is too tight in the low-$\alpha$ bulk; the
+identified remedy is Mondrian (regime-conditional) calibration with a larger
+calibration set. Second, pointwise coverage is not simultaneous coverage: the
+per-station band contains the complete Cp curve of only 49.2\% of held-out
+cases, and the measured inflation factor for a 95\% simultaneous band is
+$2.02\times$ (descriptive, test-set). The shipped band is therefore labelled
+as pointwise in the application.At inference, queries far from the training manifold are flagged by a
 Mahalanobis domain guard rather than answered with false confidence.
 
 The dataset, trained bundle, quality-control tooling, mesh-sensitivity study,
@@ -412,6 +421,47 @@ $|\Delta C_p|$), and all figures are reproduced by
 \includegraphics[width=0.85\textwidth]{figures/cp_station_error.png}
 \caption{Spatial Cp error profile on held-out airfoils.}
 \end{figure}
+
+\subsection{Design-search validation against CFD}
+\label{sec:designval}
+
+The SLSQP design search is validated the same way the surrogate is: by CFD.
+Starting from a feasible geometry (NACA 2412, $\alpha = +4^\circ$), the
+optimizer returns NACA 2313 at $\alpha = +7^\circ$ (maximizing $L/D$ subject
+to $C_L \ge 0.5$ and the wingbox constraints). Both geometries are then
+evaluated with the identical OpenFOAM pipeline:
+
+\begin{table}[htbp]
+\centering
+\caption{Design-search validation: surrogate predictions versus CFD
+(Re $=6\times10^6$, medium mesh).}
+\label{tab:designval}
+\small
+\begin{tabular}{lcc|cc}
+\toprule
+& \multicolumn{2}{c|}{Surrogate} & \multicolumn{2}{c}{CFD} \\
+Geometry & $L/D$ & $C_L$ & $L/D$ & $C_L$ \\
+\midrule
+baseline (2412, $\alpha=+4^\circ$) & 73.04 & 0.746 & 66.86 & 0.439 \\
+optimized (2313, $\alpha=+7^\circ$) & 77.74 & 0.959 & 70.80 & 0.931 \\
+\midrule
+gain & +4.70 & & \textbf{+3.93} & \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+CFD confirms the optimized geometry outperforms the baseline
+($L/D$ +3.93, from 66.86 to 70.80), so the search demonstrates verified
+aerodynamic improvement, not only optimizer functionality. The surrogate
+over-predicts the gain by $\approx$16\% and carries a consistent $+9$--$10\%$
+optimistic bias in absolute $L/D$ at these operating points; the ranking,
+however, is correct. Two caveats: the gain includes the operating-point move
+($\alpha$ is a design variable, $+4^\circ \to +7^\circ$), and the baseline
+geometry required the 6000-iteration recovery budget to converge ---
+the optimizer started from a steady-RANS-infeasible operating point and moved
+to a feasible one. Both the validation JSON and the per-case OpenFOAM runs
+are archived under \texttt{reports/evaluation/} and
+\texttt{data/design\_validation/}.
 
 \subsection{Domain applicability}
 

@@ -1,0 +1,54 @@
+{
+  "baseline_geometry": {
+    "m": 0.02,
+    "p": 0.4,
+    "t": 0.12,
+    "alpha": 4.0
+  },
+  "optimized_geometry": {
+    "m": 0.01711970024610624,
+    "p": 0.3230483045031712,
+    "t": 0.13255003209463526,
+    "alpha": 6.998822307460987
+  },
+  "reynolds": 6000000.0,
+  "optimizer_success": true,
+  "optimizer_constraints_met": true,
+  "baseline_surrogate": {
+    "cl": 0.7460293210852467,
+    "cd": 0.010213894274330388,
+    "cm": -0.05122199363592936,
+    "lift_to_drag": 73.04063475183716
+  },
+  "baseline_case_id": "NACA2412_a+4.0_Re6e6",
+  "baseline_cfd": {
+    "cl": 0.6731146821099999,
+    "cd": 0.010067099388000003,
+    "cm": -0.04903836931100001,
+    "source": "fresh_cfd",
+    "status": "converged",
+    "iterations_budget": 6000
+  },
+  "optimized_surrogate": {
+    "cl": 0.9585524666574852,
+    "cd": 0.012329789749233227,
+    "cm": -0.030841636939913035,
+    "lift_to_drag": 77.74280714860497
+  },
+  "optimized_case_id": "NACA2313_a+7.0_Re6e6",
+  "optimized_cfd": {
+    "cl": 0.9314396969699998,
+    "cd": 0.013156592849999997,
+    "cm": -0.031084237756,
+    "source": "fresh_cfd"
+  },
+  "summary": {
+    "baseline_surrogate_LD": 73.04063475183716,
+    "optimized_surrogate_LD": 77.74280714860497,
+    "surrogate_predicted_LD_gain": 4.702172396767807,
+    "baseline_CFD_LD": 66.86282276226989,
+    "optimized_CFD_LD": 70.79642180840156,
+    "CFD_measured_LD_gain": 3.9335990461316754
+  },
+  "note": "baseline = optimization start geometry (NACA 2412, alpha = +4 deg); optimized = SLSQP output (NACA 2313, alpha = +7 deg); both evaluated with the identical OpenFOAM pipeline at Re = 6e6, medium mesh; baseline required the 6000-iteration recovery budget to converge"
+}

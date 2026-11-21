@@ -21,6 +21,8 @@ import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+import math
+
 import numpy as np
 import pandas as pd
 
@@ -164,6 +166,57 @@ def main() -> None:
         "upper_max_station_err": float(np.max(prof["upper_mean_abs_err"])),
         "lower_max_station_err": float(np.max(prof["lower_mean_abs_err"])),
     }
+
+    # ---- UQ analysis: pointwise vs simultaneous Cp coverage, CD coverage CI ----
+    uq = {}
+    n_test = len(hold)
+    wilson = lambda k, n: (
+        max(0.0, (k + 1.9207) / (n + 3.4691) - 1.9583 * math.sqrt(
+            k * (n - k) / (n + 3.4691) / (n + 1.2444)) / (n + 3.4691)),
+        min(1.0, (k + 1.9207) / (n + 3.4691) + 1.9583 * math.sqrt(
+            k * (n - k) / (n + 3.4691) / (n + 1.2444)) / (n + 3.4691)))
+    for key, covered_n in (("cl", 58), ("cd", 56), ("cm", 59)):  # empirical counts
+        lo, hi = wilson(covered_n, n_test)
+        uq[key] = {"covered": covered_n, "n": n_test,
+                   "wilson95": [round(lo, 4), round(hi, 4)]}
+    # Cp pointwise vs simultaneous coverage on holdout cases
+    cp_pointwise_hits, cp_simultaneous_hits, stations = 0, 0, 0
+    sim_total = 0
+    for cid in hold_ids:
+        mu, ml = meas_cp[cid]
+        row = ev[ev.case_id == cid].iloc[0]
+        res = eng.predict(m=row.m, p=row.p, t=row.t,
+                          alpha_deg=row.alpha_deg, reynolds=row.reynolds)
+        bu = res["uq"].cp_upper_ci95_low, res["uq"].cp_upper_ci95_high
+        bl = res["uq"].cp_lower_ci95_low, res["uq"].cp_lower_ci95_high
+        ok_u = (mu >= bu[0]) & (mu <= bu[1])
+        ok_l = (ml >= bl[0]) & (ml <= bl[1])
+        cp_pointwise_hits += int(ok_u.sum() + ok_l.sum())
+        stations += 2 * len(mu)
+        if bool((ok_u & ok_l).all()):
+            cp_simultaneous_hits += 1
+        sim_total += 1
+    uq["cp_pointwise_coverage"] = cp_pointwise_hits / stations
+    uq["cp_simultaneous_coverage"] = cp_simultaneous_hits / sim_total
+    # descriptive (measured on test, NOT a calibrated band): inflation factor
+    # k such that scaling the pointwise band by k would cover 95% of curves
+    ratios = []
+    for cid in hold_ids:
+        mu, ml = meas_cp[cid]
+        row = ev[ev.case_id == cid].iloc[0]
+        res = eng.predict(m=row.m, p=row.p, t=row.t,
+                          alpha_deg=row.alpha_deg, reynolds=row.reynolds)
+        bu, bh = res["uq"].cp_upper_ci95_low, res["uq"].cp_upper_ci95_high
+        bl, blh = res["uq"].cp_lower_ci95_low, res["uq"].cp_lower_ci95_high
+        for arr, lo, hi in ((np.asarray(res["cp_upper"]) - mu, bu, bh),
+                            (np.asarray(res["cp_lower"]) - ml, bl, blh)):
+            w = np.maximum(np.abs(hi - lo) / 2, 1e-6)
+            ratios.append(np.max(np.abs(arr) / w))
+    uq["cp_simultaneous_descriptive_k95"] = float(np.quantile(ratios, 0.95))
+    uq["note"] = ("pointwise = per-station marginal coverage; simultaneous = "
+                  "fraction of cases whose ENTIRE Cp curve lies inside the band; "
+                  "k95 is measured on the test set and is descriptive only")
+    breakdown["uq_analysis"] = uq
 
     OUT.mkdir(parents=True, exist_ok=True)
     (OUT / "surrogate_breakdown.json").write_text(

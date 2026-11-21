@@ -21,8 +21,16 @@ certification system.
 > (airfoils never seen in training), empirical split-conformal coverage was
 > CL 0.951 / CD 0.918 / Cm 0.967 / Cp 0.957 against the 0.95 nominal level;
 > physics-consistency R² between integrated ΔCp lift and CL is 0.983. Per-airfoil, per-angle-of-attack and per-station
-> breakdowns are computed by `scripts/evaluate_surrogate.py`
-> (`reports/evaluation/surrogate_breakdown.json`): CL extrapolation MAE is
+> Coverage is reported with its distinctions: the CD interval under-covers
+> (0.918; Wilson 95% CI [0.890, 0.906] excludes 0.95 — heteroscedastic
+> residuals; Mondrian calibration is the identified v2 fix), and the Cp band is
+> pointwise (per-station coverage 0.957; simultaneous whole-curve coverage
+> 0.492; descriptive inflation factor 2.02×).> breakdowns are computed by `scripts/evaluate_surrogate.py`
+> The SLSQP design search is CFD-validated: from NACA 2412 (α = +4°) the
+> optimizer returns NACA 2313 (α = +7°), and OpenFOAM confirms the gain —
+> L/D 66.86 → 70.80 (+3.93 measured vs +4.70 predicted; surrogate is
+> ~16% optimistic on the gain, ranking correct). See
+> `reports/evaluation/design_search_validation.json`.> (`reports/evaluation/surrogate_breakdown.json`): CL extrapolation MAE is
 > worst at negative incidence (0.159 at −6° vs 0.056 at +2°), CD relative MAE
 > on held-out airfoils is 9.7% with near-zero bias, CM weakness concentrates
 > in one near-zero-variance shape (NACA 5611), and the Cp error profile peaks
