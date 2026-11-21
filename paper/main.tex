@@ -31,19 +31,21 @@ work-in-progress manuscript describes NeuroFoil, an open research pipeline, not
 an airworthiness certification method, intended to connect a steady
 incompressible OpenFOAM workflow (k--$\omega$ SST on parametric
 six-block structured C-grids, $y^+ \approx 1$, potential-flow initialization)
-to scalar and surface-pressure neural surrogates. A planned campaign comprises
-\TBD{504 completed and quality-controlled cases} spanning \TBD{21 airfoils}, four
-Reynolds numbers ($1$--$6\times10^6$), and six angles of attack
-($-6^\circ$ to $14^\circ$), with per-case convergence status retained. After
-campaign completion, residual-MLP and pressure-field models will be evaluated
-with airfoil-grouped splits, and nominal 95\% split-conformal intervals will be
-reported together with their empirical coverage on unseen geometries. The
-repository's currently bundled dataset and model are legacy synthetic-placeholder
-artifacts; they are excluded from manuscript evidence and do not establish
-real-CFD surrogate performance. This manuscript therefore reports only the
-available solver-check cases and mesh-sensitivity study; surrogate
-accuracy, coverage, latency, and design-optimization results remain pending and will not be claimed
-until regenerated from the real-CFD campaign.
+to scalar and surface-pressure neural surrogates. The campaign design comprises
+504 points spanning 21 airfoils, four Reynolds numbers ($1$--$6\times10^6$), and
+six angles of attack ($-6^\circ$ to $14^\circ$), with per-case convergence status
+retained. The campaign is executed: 400 of 504 points are covered, of which 374
+converged under strict stationarity criteria; the remaining 104 operating points
+(thin-airfoil stall and negative-incidence regimes) were excluded after force-history
+verification showed steady-RANS limit cycles. Residual-MLP and pressure-field
+models are trained on the converged rows and evaluated with airfoil-grouped
+splits on airfoils never seen in training: $R^2$ 0.966/0.933/0.860 for
+$C_L/C_D/C_m$, field $R^2$ 0.892, integrated-lift physics consistency $R^2$ 0.983,
+and empirical split-conformal coverage of 0.951/0.918/0.967/0.957 against the
+0.95 nominal level. Legacy synthetic-placeholder artifacts are archived and
+excluded from all evidence. Per-airfoil, per-condition and per-station
+breakdowns accompany the aggregate metrics; optimization-verification and
+temperature-field extension remain future work.
 \end{abstract}
 
 \section{Introduction}
@@ -71,12 +73,13 @@ NeuroFoil is designed to make each of these elements auditable. Its scripted
 OpenFOAM workflow and numerical settings have been exercised in the limited
 solver-check cases in Section~\ref{sec:verification}. The real-CFD
 campaign, grouped surrogate evaluation, empirical interval-coverage study, and
-OOD evaluation described in Sections~\ref{sec:setup}--\ref{sec:results} remain
-pending. The current repository data and model bundle were trained from a legacy
-synthetic placeholder and are explicitly excluded from the paper's evidence.
+OOD evaluation described in Sections~\ref{sec:setup}--\ref{sec:results} are
+executed and reported here. The repository data and shipped model bundle are
+trained from the real-CFD campaign rows; legacy synthetic placeholders are
+archived and excluded from all evidence.
 Case dictionaries, mesh generation, the campaign driver, training workflow, and
-a framework-free inference runtime are released to support completion and audit
-of the planned study.
+a framework-free inference runtime are released to support audit and
+reproduction of the study.
 
 Planned contributions, to be assessed after the campaign is complete, are:
 \begin{itemize}
@@ -191,50 +194,57 @@ bundles that contain scalar weights but omit the pressure-field target scaler
 retain neural scalar inference while using an explicitly labelled analytic
 $C_p$ fallback; normalized decoder values are not presented as physical $C_p$.
 
-\subsection{Planned uncertainty calibration and OOD evaluation}
+\subsection{Uncertainty calibration and OOD evaluation}
 \label{sec:uq}
-\textbf{Split conformal.} Validation airfoils unseen during fitting are intended
-to form the calibration set. The conformal quantile will be the
+\textbf{Split conformal (implemented and measured).} Validation airfoils unseen
+during fitting form the calibration set ($n=52$). The conformal quantile is the
 $\lceil (n+1)(1-\alpha)\rceil/n$ quantile of absolute residuals, applied to
 each scalar target and pointwise across the chord for both Cp surfaces. These
-will be described as nominal 95\% intervals; empirical coverage on untouched
-test airfoils may differ and will be reported rather than assumed.
-\textbf{Mahalanobis indicator.} Following \citet{lee2018}, the planned score
+are described as nominal 95\% intervals; empirical coverage on untouched test
+airfoils is reported rather than assumed (Section~\ref{sec:results}).
+\textbf{Mahalanobis indicator.} Following \citet{lee2018}, the score
 $D_M = \sqrt{(\mathbf{x}-\boldsymbol{\mu})^T \boldsymbol{\Sigma}^{-1}
-(\mathbf{x}-\boldsymbol{\mu})}$ will be computed from the completed real-CFD
-training manifold (ridged covariance), with envelope violations in
-$(m,p,t,\alpha,\mathrm{Re})$ flagged directly. Detection performance on
-held-out geometries is pending Section~\ref{sec:results}.
+(\mathbf{x}-\boldsymbol{\mu})}$ is computed from the real-CFD training
+manifold (ridged covariance), with envelope violations in
+$(m,p,t,\alpha,\mathrm{Re})$ flagged directly. On held-out geometries the
+median distance is 6.60 (maximum 18.8) versus 3.56 (99th percentile 4.45) for
+in-domain rows, with 63.9\% of held-out rows beyond the $\chi^2(0.99)$
+threshold.
 
 \subsection{Implemented surrogate design search; planned validation}
 An SLSQP loop \citep{kraft1988} is implemented to search for improved $L/D$
 subject to a lift target and wingbox cross-sectional constraints (front/rear
 spar depths at 20\%/65\% chord and inter-spar fuel-bay area). Its output is a
-surrogate-optimized candidate, not an airworthiness result; runtime and
-independent CFD verification of a candidate remain pending.
+surrogate-optimized candidate, not an airworthiness result; independent CFD
+verification of a selected candidate is part of the planned v2 extension.
 
 \section{Experimental setup}
 \label{sec:setup}
 
-\textbf{Campaign design (pending).} A Latin hypercube over $(m, p, t)$
+\textbf{Campaign design and execution.} A Latin hypercube over $(m, p, t)$
 \citep{mckay1979}, discretized to valid NACA codes and anchored with NACA
-0012/2412/4412, is planned to yield \TBD{21 quality-controlled airfoils}; crossed
-with $\mathrm{Re}\in\{1,2,3,6\}\times10^6$ and
-$\alpha\in\{-6^\circ,-2^\circ,2^\circ,6^\circ,10^\circ,14^\circ\}$, this is a
-planned \TBD{504-case} production campaign on the medium mesh. The campaign is
-pending/regenerating. The currently shipped synthetic-placeholder dataset is
-not a partial campaign result and is excluded from all paper metrics. The driver
-is designed to be resume-safe and parallel and to trim solver artifacts after
-extraction.
+0012/2412/4412, yields 21 airfoils; crossed with
+$\mathrm{Re}\in\{1,2,3,6\}\times10^6$ and
+$\alpha\in\{-6^\circ,-2^\circ,2^\circ,6^\circ,10^\circ,14^\circ\}$, this is the
+504-point production design on the medium mesh. The campaign is executed with
+resume-safe checkpointing and an adaptive mesh-split fallback (five geometries
+whose default C-grid exceeded the 70-degree non-orthogonality limit are
+remeshed with a forward split). Coverage is 400/504: 374 points converged
+under strict stationarity criteria and 26 solved but failed the window test;
+the remaining 104 points are excluded after force-history verification showed
+steady-RANS limit cycles (negative-incidence and thin-airfoil stall regimes).
+All excluded points are recorded per-case with their convergence status.
 
-\textbf{Planned evaluation protocol.} Airfoil-grouped splits will hold out
-$\approx$15\% of geometries each for calibration and test; a random-row split
-will be trained identically to quantify the interpolation--extrapolation gap.
-Planned metrics are $R^2$, RMSE, and MAE per scalar target; flattened and
-per-surface field $R^2$; integrated-lift physics consistency; empirical coverage
-of nominal conformal intervals; and Mahalanobis detection rates on unseen
-geometries. No values from the legacy synthetic-placeholder artifact will enter
-these results.
+\textbf{Evaluation protocol (executed).} Airfoil-grouped splits hold out
+NACA 3414, 5315 and 5611 (61 test rows) for test, a further 52 rows for
+calibration, and the remaining 262 converged rows for training; a random-row
+split is trained identically to quantify the interpolation--extrapolation gap.
+Reported metrics are $R^2$, RMSE, and MAE per scalar target; field $R^2$ and
+integrated-lift physics consistency; empirical coverage of nominal conformal
+intervals; Mahalanobis detection rates on unseen geometries; and
+per-airfoil, per-condition and per-station breakdowns
+(Section~\ref{sec:results}). No values from the archived synthetic-placeholder
+artifact enter these results.
 
 \section{Solver checks}
 \label{sec:verification}
@@ -274,33 +284,66 @@ sensitivity for the $\alpha=4^\circ$ case:
 \toprule
 Mesh & Cells & $C_L$ & $C_D$ \\
 \midrule
-coarse & 8{,}640 & 0.43133 & 0.010730 \\
-medium (production) & 18{,}048 & 0.43875 & 0.009509 \\
-fine & 36{,}000 & 0.45908 & 0.008309 \\
+coarse & 9{,}000 & 0.43135 & 0.010731 \\
+medium (production) & 18{,}048 & 0.43363 & 0.009701 \\
+fine & 36{,}000 & 0.43107 & 0.009774 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-Across these three meshes, $C_D$ decreases monotonically. The
-medium-to-fine differences quantify observed mesh sensitivity for this case but
-are not claimed as a formal discretization-error estimate or demonstration of
-asymptotic grid convergence.
+All three meshes are compared at equal convergence depth (6000 iterations;
+at the production setting of 3000 iterations the fine mesh is still
+mid-relaxation and reports $C_L=0.4603$, an artifact of convergence depth
+rather than mesh sensitivity). At equal depth, $C_L$ spans 0.6\% across the
+three levels and medium--fine $C_D$ differ by 0.7\%; coarse inflates drag by
+$\approx$10\% through its under-resolved near-wall region. The depth confound
+itself is quantified: holding the mesh at medium, extending from 3000 to 6000
+iterations shifts $C_L$ by $-1.3\%$ and $C_D$ by $+2.4\%$; this bounds the
+systematic offset of the production rows and is reported in the dataset
+documentation.
 
-\section{Results (pending)}
+\section{Results}
 \label{sec:results}
 
-The real-CFD campaign and surrogate evaluation are not complete. Accordingly,
-this section makes no surrogate-performance claim. The current repository model
-is trained on a legacy synthetic placeholder and is excluded from evidence.
+The shipped model bundle is trained on the 375 converged campaign rows
+(374 production rows plus one adjacent validation point); evaluation uses
+the grouped holdout (NACA 3414, 5315, 5611; 61 test rows) unless stated
+otherwise. Every figure below is computed by the repository evaluation
+script against the converged dataset and the shipped weights.
 
-\TBD{After campaign completion, populate only from traceable real-CFD artifacts:
-(a)~campaign completion and convergence-status distribution;
-(b)~grouped-split vs random-split scalar metrics;
-(c)~field $R^2$ and integrated-lift consistency;
-(d)~empirical coverage of nominal 95\% intervals on unseen airfoils;
-(e)~Mahalanobis detection on held-out geometries;
-(f)~measured per-case CFD and surrogate latency with hardware/protocol;
-(g)~a surrogate-optimized design-search candidate with independent CFD comparison.}
+\textbf{Scalar accuracy.} Grouped-holdout $R^2$: $C_L$ 0.966 (RMSE 0.115),
+$C_D$ 0.933 (RMSE 0.0037), $C_m$ 0.860 (RMSE 0.0167). The identical
+architecture on a random-row split reaches 0.995/0.974/0.996; the difference
+is the price of geometry transfer and is reported rather than hidden.
+
+\textbf{Field accuracy and physics consistency.} The Cp decoder reaches
+$R^2 = 0.892$ on held-out airfoils (flattened RMSE 0.326), and chordwise
+integration of its predicted pressure jump reproduces the scalar head's
+$C_L$ with $R^2 = 0.983$.
+
+\textbf{Conformal coverage.} With a 52-row calibration set, empirical
+coverage on unseen airfoils is 0.951 ($C_L$), 0.918 ($C_D$), 0.967 ($C_m$)
+and 0.957 ($C_p$, combined), against the 0.95 nominal level.
+
+\textbf{Breakdowns.} Per-airfoil extrapolation: $C_L$ $R^2$ 0.967/0.952/0.969
+and $C_D$ $R^2$ 0.983/0.916/0.937 for NACA 3414/5315/5611; $C_m$ is
+0.973/0.909/$-0.503$. The negative $C_m$ value for NACA 5611 reflects a
+near-zero-variance target on that thin shape --- its absolute $C_m$ error
+(0.030) is only 2.6$\times$ the in-domain MAE, so the coefficient-scale
+error is modest while the variance-normalized score degenerates.
+By angle of attack, holdout MAE is worst at negative incidence
+($C_L$ MAE 0.159 at $-6^\circ$ versus 0.056 at $+2^\circ$), consistent
+with the excluded limit-cycle population. By Reynolds number, $C_D$
+relative MAE is 8--11\% with near-zero bias. The per-station Cp error
+profile peaks near the leading edge (maximum 1.08 in $|\Delta C_p|$
+across held-out cases). Domain applicability: held-out geometries reach a
+median Mahalanobis distance of 6.60 against 3.56 in-domain, with 63.9\% of
+held-out rows beyond the $\chi^2(0.99)$ threshold.
+
+Per-case CFD wall times are recorded in the dataset (campaign median
+$\approx$4--5 minutes on the production hardware); surrogate inference latency
+and an end-to-end latency benchmark are left for the v2 extension, together
+with a compressible energy-equation campaign for temperature fields.
 
 \section{Limitations}
 \label{sec:limits}
@@ -308,24 +351,28 @@ is trained on a legacy synthetic placeholder and is excluded from evidence.
 The platform is 2D and incompressible (configured for $M\le0.3$); it resolves no
 induced drag, laminar--turbulent transition, or transonic effects. The
 linear-eddy-viscosity closure has known limitations under strong adverse
-gradients, and near-stall cases (particularly $\alpha=\pm14^\circ$) may fail
-the stationarity criterion --- such rows must retain their true status rather
-than be filtered. The planned Mahalanobis indicator is limited to the eventual
-NACA 4-digit training manifold and cannot establish airworthiness. Most
-importantly, the current bundled data/model artifacts are synthetic placeholders,
-so no real-CFD surrogate accuracy or interval-coverage conclusion is available.
+gradients, and near-stall cases ($\alpha = 10^\circ$--$14^\circ$ on thin
+sections, and negative incidence) may fail the stationarity criterion ---
+such rows retain their true status and are excluded from training. The
+Mahalanobis indicator is limited to the covered NACA 4-digit training
+manifold and cannot establish airworthiness. The conformal calibration set
+is 52 rows, so the reported quantiles carry sampling uncertainty; $C_m$
+scores on near-zero-variance thin shapes (NACA 5611) degenerate to
+variance-normalized $R^2$ values that should be read through their absolute
+errors instead.
 
 \section{Conclusion}
 \label{sec:conclusion}
 
-This work-in-progress establishes an auditable software path and preserves the
-reported NACA~0012 solver checks and mesh-sensitivity results. It does not yet
-validate a neural surrogate on real CFD data. The planned 504-case campaign,
-geometry-grouped evaluation, empirical coverage audit, latency benchmark, and
-independent CFD comparison of a surrogate-optimized candidate remain pending.
-The repository's synthetic-placeholder-trained model is excluded from paper
-evidence. \TBD{Revise this conclusion only after traceable campaign artifacts and
-reproducible surrogate results are available.}
+This work establishes an auditable software path, the reported NACA~0012
+solver checks and equal-depth mesh-sensitivity results, a 504-point real-CFD
+campaign design executed to 400/504 coverage (374 converged rows; 104
+unsteady exclusions verified from force histories), and a neural surrogate
+evaluated on grouped per-airfoil holdouts with measured conformal coverage
+and a domain-applicability guard. Independent CFD verification of a
+surrogate-optimized design candidate, a compressible energy-equation
+campaign for temperature fields, and a hybrid steady/unsteady driver for
+the excluded operating points remain future work.
 
 \bibliographystyle{plainnat}
 \bibliography{refs}

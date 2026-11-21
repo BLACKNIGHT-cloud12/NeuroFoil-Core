@@ -20,7 +20,13 @@ certification system.
 > production + 1 adjacent validation point). On grouped per-airfoil holdouts
 > (airfoils never seen in training), empirical split-conformal coverage was
 > CL 0.951 / CD 0.918 / Cm 0.967 / Cp 0.957 against the 0.95 nominal level;
-> physics-consistency R² between integrated ΔCp lift and CL is 0.983. Legacy
+> physics-consistency R² between integrated ΔCp lift and CL is 0.983. Per-airfoil, per-angle-of-attack and per-station
+> breakdowns are computed by `scripts/evaluate_surrogate.py`
+> (`reports/evaluation/surrogate_breakdown.json`): CL extrapolation MAE is
+> worst at negative incidence (0.159 at −6° vs 0.056 at +2°), CD relative MAE
+> on held-out airfoils is 9.7% with near-zero bias, CM weakness concentrates
+> in one near-zero-variance shape (NACA 5611), and the Cp error profile peaks
+> near the leading edge. Legacy
 > synthetic-placeholder artifacts are preserved under `models/legacy_synthetic/`
 > and `data/processed/legacy_synthetic/` and are excluded from all metrics.
 >
@@ -74,7 +80,7 @@ flowchart TD
     end
 
     subgraph SciML["3. Machine Learning & Inference Engine"]
-        H["Pending Real-CFD Campaign\n(planned 504 cases; grouped splits)"] --> I["Planned Residual MLP (Scalars)\n+ Surface Decoder (Cp, both surfaces)"]
+        H["Real-CFD Campaign\n(504-point design; 400 covered)"] --> I["Residual MLP (Scalars)\n+ Surface Decoder (Cp, both surfaces)"]
         I --> J["Pure-NumPy Runtime\n(backend reported per prediction)"]
         J --> K["Nominal 95% Split-Conformal Intervals\n& Mahalanobis OOD Indicator"]
     end
@@ -153,8 +159,9 @@ constraints, the platform computes internal cross-sectional metrics:
 ## 3. Solver Checks (measured on this codebase)
 
 The available NACA 0012 solver checks are summarized below. They
-exercise limited pipeline behavior; they do not validate the pending surrogate
-campaign.
+exercise limited pipeline behavior; the full surrogate evaluation is reported
+separately (grouped per-airfoil holdouts, coverage and per-condition
+breakdowns).
 
 NACA 0012, incompressible k-ω SST, medium C-grid (18,048 cells, y⁺ ≈ 1),
 potentialFoam-initialized, relaxation p 0.1 / U 0.3 / k,ω 0.5, 3000 iterations:
@@ -196,11 +203,14 @@ itself, a formal discretization-error or asymptotic-convergence estimate.
    0 ≤ p ≤ 0.60 · thickness 0.06 ≤ t ≤ 0.18 · α ∈ [−6°, 14°] ·
    Re ∈ [1×10⁶, 6×10⁶]. Being inside these bounds does not by itself establish
    model validity.
-5. **Current artifacts are placeholders** — `data/processed/` and the bundled
-   model files are legacy/synthetic-placeholder-trained artifacts. They are
-   useful for exercising interfaces only and are excluded from real-CFD
-   performance evidence. The real campaign must be generated with
-   `scripts/run_dataset_campaign.py`, then models and grouped metrics regenerated.
+5. **Real-CFD artifacts shipped; scope is bounded** — `data/processed/` holds
+   the completed campaign dataset (400/504 covered; 374 converged training
+   rows) and `models/` holds the bundle trained on those rows
+   (`model_provenance = openfoam`). Legacy synthetic placeholders are archived
+   under `models/legacy_synthetic/` and `data/processed/legacy_synthetic/`.
+   The surrogate is valid inside the covered envelope; the 104 uncovered
+   operating points (thin-airfoil stall / negative-α limit cycles) are flagged
+   by the domain guard rather than predicted.
 6. **Backend-dependent outputs** — callers must inspect `model_backend`,
    `model_provenance`, and `field_backend`. Analytic fallback scalars are not
    neural/CFD-trained predictions; legacy bundles without a Cp target scaler use
@@ -217,9 +227,9 @@ NeuroFoil-Core/
 ├── configs/
 │   └── default_cfd.yaml              # Meshing, solver, relaxation, convergence settings
 ├── data/
-│   ├── processed/                    # current legacy/synthetic placeholder artifacts
+│   ├── processed/                    # real-CFD campaign dataset (400/504 covered) + legacy_synthetic/ archive
 │   └── raw_cases/                    # Per-case solver logs & postProcessing (gitignored)
-├── models/                           # current legacy placeholder bundle + runtime scalers
+├── models/                           # real-CFD-trained bundle + runtime scalers (legacy archived)
 ├── notebooks/
 │   └── neurofoil_surrogate_training_v2.ipynb  # Kaggle/local GPU training (grouped splits + conformal UQ)
 ├── paper/                            # work-in-progress LaTeX manuscript

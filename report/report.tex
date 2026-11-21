@@ -367,6 +367,52 @@ $C_p$ (combined) & 0.957 & 0.95 \\
 \end{tabular}
 \end{table}
 
+\subsection{Breakdowns: airfoil, condition, and station}
+
+Aggregate $R^2$ alone is not sufficient evidence, so the evaluation script
+computes per-airfoil, per-angle-of-attack and per-station breakdowns
+(\texttt{scripts/evaluate\_surrogate.py}, outputs under
+\texttt{reports/evaluation/}).
+
+\begin{table}[htbp]
+\centering
+\caption{Per-airfoil holdout metrics ($R^2$ / MAE).}
+\label{tab:perairfoil}
+\small
+\begin{tabular}{lccc|ccc}
+\toprule
+& \multicolumn{3}{c|}{$R^2$} & \multicolumn{3}{c}{MAE} \\
+Airfoil & $C_L$ & $C_D$ & $C_m$ & $C_L$ & $C_D$ & $C_m$ \\
+\midrule
+NACA 3414 & 0.967 & 0.983 & 0.973 & 0.100 & 0.0008 & 0.0025 \\
+NACA 5315 & 0.952 & 0.916 & 0.909 & 0.079 & 0.0033 & 0.0061 \\
+NACA 5611 & 0.969 & 0.937 & $-0.503$ & 0.110 & 0.0025 & 0.0298 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Findings: (i) $C_m$ weakness is concentrated in one shape --- NACA 5611 has a
+near-zero-variance $C_m$ target, so the variance-normalized $R^2$ degenerates
+while its absolute error (MAE 0.030) is only 2.6$\times$ the in-domain MAE;
+(ii) $C_D$ relative MAE on held-out airfoils is 9.7\% with near-zero bias
+($-6\times10^{-5}$), stable across Reynolds numbers (8--11\%); (iii) scalar
+error is worst at negative incidence ($C_L$ MAE 0.159 at $-6^\circ$ versus
+0.056 at $+2^\circ$), mirroring the excluded limit-cycle population;
+(iv) the per-station Cp error peaks near the leading edge (maximum 1.08 in
+$|\Delta C_p|$), and all figures are reproduced by
+\texttt{scripts/evaluate\_surrogate.py}.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.98\textwidth]{figures/per_airfoil_r2.png}
+\caption{Per-airfoil holdout $R^2$ per scalar target.}
+\end{figure}
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.85\textwidth]{figures/cp_station_error.png}
+\caption{Spatial Cp error profile on held-out airfoils.}
+\end{figure}
+
 \subsection{Domain applicability}
 
 A Mahalanobis distance over the (m, p, t, $\alpha$, $Re$) feature space
