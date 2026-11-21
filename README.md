@@ -37,6 +37,25 @@ certification system.
 > (`analytic_fallback_missing_field_scaler`) rather than exposing normalized
 > decoder outputs as physical pressure coefficients.
 
+## 0. Desktop application (fully local)
+
+The **NeuroFoil Flight Deck** is an Electron desktop app that wraps the same
+inference engine in a FastAPI sidecar bound to `127.0.0.1` only — no cloud
+calls, no telemetry.
+
+```bash
+cd app-desktop
+./run.sh        # spawns the sidecar and opens the app window
+```
+
+The flight deck exposes live surrogate estimates with conformal bands, the
+Cp(x/c) field, a Mahalanobis domain-applicability gauge, wingbox cross-section
+schematics with exact spar coordinates, polar sweeps, and the constrained
+SLSQP design search. Every query displays its backend, provenance and
+advisories. Requires Python dependencies (`pip install -r requirements.txt`
+plus `fastapi` and `uvicorn`) and Node (Electron is installed by
+`npm install` inside `app-desktop/`).
+
 ---
 
 ## 1. System Architecture
