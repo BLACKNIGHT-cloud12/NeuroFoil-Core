@@ -189,21 +189,22 @@ input[type="number"]:focus-visible { outline: 1px solid var(--ember); }
 /* ================= readouts: dark bezel instruments in the light sheet ================= */
 .readout-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 12px; }
 .readout {
-  background: var(--bezel);
-  border: 1px solid var(--frame); border-radius: 0;
+  background: var(--sheet);
+  border: 1px solid var(--line-strong); border-radius: 0;
   padding: 8px 13px 10px; display: flex; flex-direction: column; gap: 1px;
   position: relative;
+  box-shadow: 2px 2px 0 rgba(26, 29, 33, 0.08);
 }
 .readout::after {
   content: ""; position: absolute; inset: 3px;
-  border: 1px solid rgba(228, 231, 235, 0.10); pointer-events: none;
+  border: 1px solid rgba(26, 29, 33, 0.07); pointer-events: none;
 }
-.ro-label { font-size: 9.5px; letter-spacing: 0.17em; color: var(--bezel-muted); }
+.ro-label { font-size: 9.5px; letter-spacing: 0.17em; color: var(--ink-faint); }
 .ro-value {
   font-family: var(--mono); font-size: 27px; font-weight: 400;
-  color: var(--bezel-text); font-variant-numeric: tabular-nums; line-height: 1.12;
+  color: var(--ink); font-variant-numeric: tabular-nums; line-height: 1.12;
 }
-.ro-band { font-family: var(--mono); font-size: 10px; color: var(--bezel-muted); font-variant-numeric: tabular-nums; }
+.ro-band { font-family: var(--mono); font-size: 10px; color: var(--ink-faint); font-variant-numeric: tabular-nums; }
 .ro-band-quiet { visibility: hidden; }
 
 /* ================= hero 3D: engraved figure frame ================= */

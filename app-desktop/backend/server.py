@@ -40,9 +40,14 @@ try:
     _conv = _conv[_conv["status"] == "converged"]
     DATASET_RANGES = {
         key: [float(_conv[key].min()), float(_conv[key].max())]
-        for key in ("cl", "cd", "cm", "lift_to_drag")
+        for key in ("cl", "cd", "cm")
         if key in _conv.columns
     }
+    # L/D is only aerodynamically meaningful with positive lift
+    _pos = _conv[_conv["lift_to_drag"] > 0]
+    if len(_pos):
+        DATASET_RANGES["lift_to_drag"] = [
+            float(_pos["lift_to_drag"].min()), float(_pos["lift_to_drag"].max())]
 except Exception:  # noqa: BLE001
     DATASET_RANGES = {}
 

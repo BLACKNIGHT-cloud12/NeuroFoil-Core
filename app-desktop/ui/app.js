@@ -932,8 +932,8 @@ async function boot() {
     $("fingerprint-chip").textContent = `artifact ${meta.artifact_fingerprint}`;
     $("uq-caln").textContent = meta.calibration_n ?? "—";
     const r = meta.ranges || {};
-    for (const [key, el] of Object.entries({ cl: "cl", cd: "cd", cm: "cm", ld: "ld" })) {
-      const rng = r[key];
+    for (const [key, el] of Object.entries({ cl: "cl", cd: "cd", cm: "cm", ld: "lift_to_drag" })) {
+      const rng = r[el];
       if (rng) {
         ranges[key] = rng;
         $(`rb-${key}-min`).textContent = fmt(rng[0], key === "ld" ? 1 : 3);
