@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>NeuroFoil — Flight Deck</title>
-<link rel="stylesheet" href="/static/styles.css?v=26">
+<link rel="stylesheet" href="/static/styles.css?v=30">
 <script>
 window.__errs = [];
 window.addEventListener("error", (e) => window.__errs.push(`${e.message} @ ${e.filename}:${e.lineno}`));
@@ -146,7 +146,7 @@ window.addEventListener("unhandledrejection", (e) => window.__errs.push(`rejecti
   <aside class="rail rail-right">
     <section class="panel">
       <h2 class="panel-title">Domain applicability</h2>
-      <svg id="ood-gauge" viewBox="0 0 220 150" preserveAspectRatio="xMidYMid meet"></svg>
+      <svg id="ood-gauge" viewBox="0 0 220 200" preserveAspectRatio="xMidYMid meet"></svg>
       <div class="ood-verdict" id="ood-verdict">—</div>
       <dl class="uq-mini">
         <div><dt>confidence</dt><dd id="uq-conf">—</dd></div>
@@ -177,6 +177,6 @@ window.addEventListener("unhandledrejection", (e) => window.__errs.push(`rejecti
   </aside>
 </main>
 
-<script type="module" src="/static/app.js?v=26"></script>
+<script type="module" src="/static/app.js?v=30"></script>
 </body>
 </html>
