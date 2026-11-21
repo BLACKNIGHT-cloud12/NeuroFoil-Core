@@ -431,24 +431,61 @@ const hero = (() => {
   }
   writeWing(wingFrom);
 
-  // flow particles
-  const PN = 550;
-  const pGeo = new THREE.BufferGeometry();
-  const pPos = new Float32Array(PN * 3);
-  const seed = [];
-  for (let i = 0; i < PN; i++) {
-    seed.push({
-      x: -2.8 + Math.random() * 6.0,
-      y: (Math.random() * 2 - 1) * 0.85,
-      z: (Math.random() * 2 - 1) * 0.75,
-      v: 0.85 + Math.random() * 0.5,
-    });
+  // ---- flow streamlines: comet pulses deflected around the section ----
+  const STREAM_SEGMENTS = 200;
+  const streamlines = [];
+  let streamPathsDirty = true;
+  let streamPhase = 0;
+
+  function envelopeAt(xc, z) {
+    const sT = taper(z);
+    const i = THREE.MathUtils.clamp(Math.round(xc * (PROF_N - 1)), 0, PROF_N - 1);
+    return Math.abs(wingFrom[i][1]) * sT;
   }
-  pGeo.setAttribute("position", new THREE.BufferAttribute(pPos, 3));
-  scene.add(new THREE.Points(pGeo, new THREE.PointsMaterial({
-    color: 0xffa050, size: 0.022, transparent: true, opacity: 0.5,
-    blending: THREE.AdditiveBlending, depthWrite: false,
-  })));
+
+  function buildPath(y0, z) {
+    const pts = new Float32Array(STREAM_SEGMENTS * 3);
+    for (let i = 0; i < STREAM_SEGMENTS; i++) {
+      const x = -2.7 + (6.0 * i) / (STREAM_SEGMENTS - 1);
+      const xc = THREE.MathUtils.clamp(x + 0.5, 0, 1);
+      const F = Math.exp(-Math.pow((x - 0.0) / 1.05, 2));
+      const env = envelopeAt(xc, z) + 0.015;
+      const sign = y0 >= 0 ? 1 : -1;
+      const y = y0 + sign * env * Math.exp(-Math.pow(Math.abs(y0) / 0.16, 2)) * F;
+      pts[i * 3] = x - 0.1;
+      pts[i * 3 + 1] = y;
+      pts[i * 3 + 2] = z;
+    }
+    return pts;
+  }
+
+  function rebuildStreamPaths() {
+    for (const s of streamlines) {
+      s.geo.attributes.position.array.set(buildPath(s.y0, s.z));
+      s.geo.attributes.position.needsUpdate = true;
+    }
+    streamPathsDirty = false;
+  }
+
+  const streamY0 = [0.14, 0.3, -0.14, -0.3, 0.5, -0.5];
+  const streamZ = [-0.42, 0.0, 0.42];
+  for (const z of streamZ) {
+    for (const y0 of streamY0) {
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute("position", new THREE.BufferAttribute(
+        new Float32Array(STREAM_SEGMENTS * 3), 3));
+      geo.setAttribute("color", new THREE.BufferAttribute(
+        new Float32Array(STREAM_SEGMENTS * 3), 3));
+      const line = new THREE.Line(geo, new THREE.LineBasicMaterial({
+        vertexColors: true, transparent: true, opacity: 0.9,
+        blending: THREE.AdditiveBlending, depthWrite: false,
+      }));
+      line.userData = { y0, z, phase: Math.random() };
+      streamlines.push({ y0, z, geo, line, phase: line.userData.phase });
+      scene.add(line);
+    }
+  }
+  rebuildStreamPaths();
 
   // camera orbit
   const orbit = { yaw: 0.9, pitch: 0.3, radius: 3.1, dragging: false, lastX: 0, lastY: 0, idle: 0 };
@@ -544,23 +581,22 @@ const hero = (() => {
     wingGroup.rotation.z = THREE.MathUtils.degToRad(-alphaRad);
     if (!orbit.dragging) { orbit.idle += dt; if (orbit.idle > 2.2) orbit.yaw += dt * 0.07; }
     applyCamera();
-    for (let i = 0; i < PN; i++) {
-      const s = seed[i];
-      s.x += s.v * dt;
-      if (s.x > 3.2) { s.x = -3.0; s.y = (Math.random() * 2 - 1) * 0.85; s.z = (Math.random() * 2 - 1) * 0.75; }
-      let y = s.y;
-      if (Math.abs(s.z) < SPAN / 2 + 0.05) {
-        const sT = taper(s.z);
-        const xi = THREE.MathUtils.clamp(s.x + 0.5, 0, 1);
-        const prof = wingFrom[Math.floor(xi * (PROF_N - 1))];
-        const surface = Math.abs(prof[1]) * sT + 0.02;
-        if (Math.abs(y) < surface + 0.16) {
-          y = (surface + 0.16) * Math.sign(y || 1) * (0.4 + 0.6 * Math.exp(-Math.abs(y) * 6));
-        }
+    if (moved) streamPathsDirty = true;
+    if (streamPathsDirty) rebuildStreamPaths();
+    streamPhase = (streamPhase + dt * 0.16) % 1;
+    const pulse = (u) => Math.exp(-Math.pow(((u - streamPhase + 1.5) % 1) - 0.5, 2) / 0.008);
+    for (const s of streamlines) {
+      const col = s.geo.attributes.color.array;
+      for (let i = 0; i < STREAM_SEGMENTS; i++) {
+        const u = i / (STREAM_SEGMENTS - 1);
+        const base = 0.28 + 0.1 * Math.sin(u * 18 + s.phase * 9);
+        const p = pulse(u) * 0.95 + 0.06;
+        col[i * 3] = base * 0.35 + p * 1.0;
+        col[i * 3 + 1] = base * 0.42 + p * 0.62;
+        col[i * 3 + 2] = base * 0.62 + p * 0.35;
       }
-      pPos[i * 3] = s.x - 0.1; pPos[i * 3 + 1] = y; pPos[i * 3 + 2] = s.z;
+      s.geo.attributes.color.needsUpdate = true;
     }
-    pGeo.attributes.position.needsUpdate = true;
     paintWing(display.cpU, display.cpL);
     composer.render();
     return moved;
