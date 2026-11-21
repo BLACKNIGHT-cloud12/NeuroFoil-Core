@@ -3,6 +3,10 @@
    - three.js hero: a live-morphing wing section with flow particles
    - hand-rolled SVG charts, no dependencies beyond the vendored three module */
 import * as THREE from "three";
+import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
+import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
+import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
+import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 
 const $ = (id) => document.getElementById(id);
 const NS = "http://www.w3.org/2000/svg";
@@ -296,6 +300,18 @@ const hero = (() => {
   scene.fog = new THREE.FogExp2(0x0b1220, 0.10);
   const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 100);
 
+  const composer = new EffectComposer(
+    renderer,
+    new THREE.WebGLRenderTarget(window.innerWidth, window.innerHeight, {
+      type: THREE.HalfFloatType, samples: 4,
+    }),
+  );
+  composer.addPass(new RenderPass(scene, camera));
+  const bloomPass = new UnrealBloomPass(
+    new THREE.Vector2(window.innerWidth, window.innerHeight), 0.35, 0.5, 0.9);
+  composer.addPass(bloomPass);
+  composer.addPass(new OutputPass());
+
   const key = new THREE.DirectionalLight(0xffffff, 2.4); key.position.set(2.5, 3, 4);
   const rim = new THREE.DirectionalLight(0x5ab0ff, 1.6); rim.position.set(-3, 1.2, -2.5);
   scene.add(key, rim, new THREE.AmbientLight(0xffffff, 0.38));
@@ -330,8 +346,12 @@ const hero = (() => {
   geometry.setIndex(indices);
 
   const material = new THREE.MeshStandardMaterial({
-    color: 0x4a70a0, metalness: 0.5, roughness: 0.3, side: THREE.DoubleSide,
+    color: 0xffffff, vertexColors: true, metalness: 0.25,
+    roughness: 0.42, side: THREE.DoubleSide,
+    emissive: 0x0b1220, emissiveIntensity: 0.35,
   });
+  geometry.setAttribute("color", new THREE.BufferAttribute(
+    new Float32Array(RINGS * PROF_N * 3 + 6), 3));
   const wingGroup = new THREE.Group();
   wingGroup.add(new THREE.Mesh(geometry, material));
   scene.add(wingGroup);
@@ -415,11 +435,57 @@ const hero = (() => {
     const rect = canvas.parentElement.getBoundingClientRect();
     if (rect.width < 4) return;
     renderer.setSize(rect.width, rect.height, false);
+    composer.setSize(rect.width, rect.height);
     camera.aspect = rect.width / Math.max(1, rect.height);
     camera.updateProjectionMatrix();
   }
   window.addEventListener("resize", resize);
   resize();
+
+  // coolwarm colormap: suction (low Cp) = deep blue, stagnation = warm red
+  const CW = [
+    [0.180, 0.235, 0.690], [0.316, 0.516, 0.830], [0.640, 0.730, 0.840],
+    [0.930, 0.610, 0.500], [0.780, 0.010, 0.130],
+  ];
+  function coolwarm(t) {
+    const s = THREE.MathUtils.clamp(t, 0, 1) * (CW.length - 1);
+    const i = Math.min(CW.length - 2, Math.floor(s)), f = s - i;
+    return [
+      CW[i][0] + (CW[i + 1][0] - CW[i][0]) * f,
+      CW[i][1] + (CW[i + 1][1] - CW[i][1]) * f,
+      CW[i][2] + (CW[i + 1][2] - CW[i][2]) * f,
+    ];
+  }
+  const CP_LO = -1.25, CP_HI = 0.55;
+  const colorAttr = geometry.attributes.color;
+  function paintWing(cpU, cpL) {
+    const col = colorAttr.array;
+    const cAt = (station) => {
+      const tt = (THREE.MathUtils.clamp(station, CP_LO, CP_HI) - CP_LO) / (CP_HI - CP_LO);
+      return coolwarm(tt);
+    };
+    const midU = cpU[Math.floor((cpU.length - 1) / 2)] ?? 0;
+    let vi = capL * 3;
+    const capCol = coolwarm(THREE.MathUtils.clamp(midU, CP_LO, CP_HI));
+    col[vi] = capCol[0]; col[vi + 1] = capCol[1]; col[vi + 2] = capCol[2];
+    vi = capR * 3;
+    col[vi] = capCol[0]; col[vi + 1] = capCol[1]; col[vi + 2] = capCol[2];
+    let moving = false;
+    for (let r = 0; r < RINGS; r++) {
+      const s = taper(ringZ[r]);
+      for (let i = 0; i < PROF_N; i++) {
+        let station;
+        if (i <= 60) station = cpU[Math.round((i * (cpU.length - 1)) / 60)] ?? 0;
+        else station = cpL[Math.round(cpL.length - 1 - ((i - 61) * (cpL.length - 1)) / (PROF_N - 61))] ?? 0;
+        const c = cAt(station * s);
+        vi = (r * PROF_N + i) * 3;
+        if (Math.abs(col[vi] - c[0]) > 0.004) moving = true;
+        col[vi] = c[0]; col[vi + 1] = c[1]; col[vi + 2] = c[2];
+      }
+    }
+    colorAttr.needsUpdate = true;
+    return moving;
+  }
 
   function update(dt) {
     let moved = false;
@@ -450,7 +516,8 @@ const hero = (() => {
       pPos[i * 3] = s.x - 0.1; pPos[i * 3 + 1] = y; pPos[i * 3 + 2] = s.z;
     }
     pGeo.attributes.position.needsUpdate = true;
-    renderer.render(scene, camera);
+    paintWing(display.cpU, display.cpL);
+    composer.render();
     return moved;
   }
 

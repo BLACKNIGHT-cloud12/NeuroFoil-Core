@@ -11,7 +11,8 @@ window.addEventListener("error", (e) => window.__errs.push(`${e.message} @ ${e.f
 window.addEventListener("unhandledrejection", (e) => window.__errs.push(`rejection: ${e.reason}`));
 </script>
 <script type="importmap">
-{ "imports": { "three": "/static/vendor/three.module.js" } }
+{ "imports": { "three": "/static/vendor/three.module.js",
+  "three/addons/": "/static/vendor/addons/" } }
 </script>
 </head>
 <body>
@@ -71,8 +72,13 @@ window.addEventListener("unhandledrejection", (e) => window.__errs.push(`rejecti
 
     <div class="hero3d">
       <canvas id="wing-canvas"></canvas>
-      <div class="hero-hint">drag to orbit · scroll to zoom · morphs with the sliders</div>
+      <div class="hero-hint">drag to orbit · scroll to zoom · surface painted by C<sub>p</sub></div>
       <div class="hero-alpha" id="hero-alpha">α +4.0°</div>
+      <div class="hero-colorbar">
+        <span>suction</span>
+        <div class="cbar"></div>
+        <span>pressure</span>
+      </div>
     </div>
 
     <div class="cp-block">
@@ -138,6 +144,13 @@ window.addEventListener("unhandledrejection", (e) => window.__errs.push(`rejecti
         <div><dt>provenance</dt><dd id="bk-prov">—</dd></div>
       </dl>
       <p class="disclaimer">Research-use estimates. Not airworthiness or design certification.</p>
+      <div class="thermal-note">
+        <b>Aerothermal note</b> — this campaign solved incompressible isothermal
+        RANS (no energy equation): at U&nbsp;=&nbsp;1&nbsp;m/s the stagnation
+        temperature rise is ~5×10<sup>−4</sup>&nbsp;K, so aerodynamic heating is
+        negligible here. True heat contours require a compressible
+        energy-equation campaign (v2).
+      </div>
     </section>
   </aside>
 </main>
