@@ -47,7 +47,7 @@ function waitForHealth(retries = 60) {
 function createWindow() {
   win = new BrowserWindow({
     width: 1440, height: 900, minWidth: 1100, minHeight: 700,
-    backgroundColor: "#0B1220",
+    backgroundColor: "#101214",
     title: "NeuroFoil — Flight Deck",
     autoHideMenuBar: true,
     webPreferences: {
