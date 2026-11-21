@@ -33,3 +33,6 @@ app-desktop/node_modules/
 
 # session snapshots (derived artifacts; canonical data lives in data/processed)
 data/snapshots/
+
+# personal promotional material — local only
+linkedin/
