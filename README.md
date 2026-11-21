@@ -8,7 +8,7 @@ certification system.
 
 > **Artifact and evidence status (real-CFD release):** The shipped dataset and
 > trained model artifacts in `data/processed/` and `models/` are generated from
-> the completed real OpenFOAM campaign — a 504-case grid (21 NACA airfoils ×
+> the completed real OpenFOAM campaign — a 504-point grid (21 NACA airfoils ×
 > 4 Reynolds numbers × 6 angles of attack, medium mesh, k-ω SST, incompressible)
 > with per-case provenance and checkpointed persistence. **Coverage is 400/504**:
 > 374 cases converged cleanly; the remaining 104 operating points (thin-airfoil
@@ -17,58 +17,33 @@ certification system.
 > independent attempts — and are excluded from training and flagged by the
 > domain-applicability indicators at inference. The shipped bundle
 > (`model_provenance = openfoam`) is trained on the 375 converged rows (374
-> production + 1 adjacent validation point). On grouped per-airfoil holdouts
-> (airfoils never seen in training), empirical split-conformal coverage was
-> CL 0.951 / CD 0.918 / Cm 0.967 / Cp 0.957 against the 0.95 nominal level;
-> physics-consistency R² between integrated ΔCp lift and CL is 0.983. Per-airfoil, per-angle-of-attack and per-station
-> Coverage is reported with its distinctions: the CD interval under-covers
-> (0.918; Wilson 95% CI [0.890, 0.906] excludes 0.95 — heteroscedastic
-> residuals; Mondrian calibration is the identified v2 fix), and the Cp band is
-> pointwise (per-station coverage 0.957; simultaneous whole-curve coverage
-> 0.492; descriptive inflation factor 2.02×).> breakdowns are computed by `scripts/evaluate_surrogate.py`
-> The SLSQP design search is CFD-validated: from NACA 2412 (α = +4°) the
-> optimizer returns NACA 2313 (α = +7°), and OpenFOAM confirms the gain —
-> L/D 66.86 → 70.80 (+3.93 measured vs +4.70 predicted; surrogate is
-> ~16% optimistic on the gain, ranking correct). See
-> `reports/evaluation/design_search_validation.json`.> (`reports/evaluation/surrogate_breakdown.json`): CL extrapolation MAE is
-> worst at negative incidence (0.159 at −6° vs 0.056 at +2°), CD relative MAE
-> on held-out airfoils is 9.7% with near-zero bias, CM weakness concentrates
-> in one near-zero-variance shape (NACA 5611), and the Cp error profile peaks
-> near the leading edge. Legacy
-> synthetic-placeholder artifacts are preserved under `models/legacy_synthetic/`
-> and `data/processed/legacy_synthetic/` and are excluded from all metrics.
+> production + 1 adjacent validation point).
 >
-> `AeroSurrogateEngine.predict()` reports separate backend and provenance fields.
-> `model_backend` identifies the scalar path: `neural` means the bundled scalar
-> network and its scalers were loaded, while `analytic_fallback` means the values
-> come from the analytic fallback and are not neural or CFD-trained predictions.
-> `model_provenance` reports the scalar artifact's declared data source
-> (`openfoam` for the shipped bundle). A `neural` backend label identifies the
-> loaded architecture; combined with `model_provenance = openfoam` it indicates
-> training on the bundled real-CFD dataset. `field_backend` identifies the Cp
-> path. Bundles that omit the Cp target scaler retain neural scalar inference
-> but use an analytic Cp fallback
-> (`analytic_fallback_missing_field_scaler`) rather than exposing normalized
-> decoder outputs as physical pressure coefficients.
-
-## 0. Desktop application (fully local)
-
-The **NeuroFoil Flight Deck** is an Electron desktop app that wraps the same
-inference engine in a FastAPI sidecar bound to `127.0.0.1` only — no cloud
-calls, no telemetry.
-
-```bash
-cd app-desktop
-./run.sh        # spawns the sidecar and opens the app window
-```
-
-The flight deck exposes live surrogate estimates with conformal bands, the
-Cp(x/c) field, a Mahalanobis domain-applicability gauge, wingbox cross-section
-schematics with exact spar coordinates, polar sweeps, and the constrained
-SLSQP design search. Every query displays its backend, provenance and
-advisories. Requires Python dependencies (`pip install -r requirements.txt`
-plus `fastapi` and `uvicorn`) and Node (Electron is installed by
-`npm install` inside `app-desktop/`).
+> **Measured surrogate performance.** On grouped per-airfoil holdouts (airfoils
+> never seen in training): R² 0.966 (CL) / 0.933 (CD) / 0.860 (CM); field
+> R² 0.892; integrated-lift physics consistency R² 0.983. Split-conformal
+> coverage on unseen airfoils: CL 0.951 / CD 0.918 / CM 0.967 / Cp 0.957
+> against the 0.95 nominal level. Breakdowns (per-airfoil, per-condition,
+> per-station) are computed by `scripts/evaluate_surrogate.py`
+> (`reports/evaluation/surrogate_breakdown.json`): CL extrapolation MAE is
+> worst at negative incidence (0.159 at −6° vs 0.056 at +2°), CD relative MAE
+> on held-out airfoils is 9.7% with near-zero bias, and the Cp error profile
+> peaks near the leading edge.
+>
+> **Uncertainty distinctions, stated precisely.** The CD interval
+> under-covers: 0.918, Wilson 95% CI [0.890, 0.906] excluding 0.95 —
+> heteroscedastic residuals against a single global quantile. Mondrian
+> regime-conditional calibration is shipped (CD coverage 0.967 on the
+> evaluation split), and a larger calibration set is the identified v2 fix.
+> The Cp band is pointwise: per-station coverage 0.957, but simultaneous
+> whole-curve coverage is 0.492 (descriptive inflation factor 2.02×) — joint
+> coverage is the v2 target.
+>
+> **Design search is CFD-validated.** From NACA 2412 (α = +4°) the optimizer
+> returns NACA 2313 (α = +7°), and OpenFOAM confirms the gain — L/D
+> 66.86 → 70.80 (+3.93 measured vs +4.70 predicted; the surrogate is ~16%
+> optimistic on the gain, ranking correct). See
+> `reports/evaluation/design_search_validation.json`.
 
 ---
 
