@@ -6,8 +6,9 @@ I built an end-to-end aerodynamic ML platform — from raw OpenFOAM simulations
 to a desktop app with honest uncertainty quantification.
 
 What it does:
-• Runs an automated 504-case RANS campaign (21 airfoils × 4 Reynolds numbers
-  × 6 angles of attack) with checkpointed persistence and quality gates
+• Runs the automated 504-point RANS campaign design (21 airfoils × 4
+  Reynolds numbers × 6 angles of attack) with checkpointed persistence and
+  quality gates — 400 cases converged, the rest excluded on physical evidence
 • Trains neural surrogates for force coefficients AND full surface-pressure
   fields (161-point Cp distributions)
 • Serves predictions through a local desktop app — the 3D wing is painted by
@@ -35,8 +36,9 @@ Everything is open: github.com/BLACKNIGHT-cloud12/NeuroFoil-Core
 
 ## Variant B (short)
 
-504 RANS cases → neural surrogates → a desktop "flight deck" where the wing
-is painted by its own predicted pressure field.
+A 504-point campaign design → 400 converged RANS cases → neural surrogates
+→ a desktop "flight deck" where the wing is painted by its own predicted
+pressure field.
 
 Uncertainty is measured, not claimed: conformal coverage 0.951/0.918/0.967
 (CL/CD/CM) on airfoils the model never saw. 104 unsteady operating points
