@@ -5,6 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>NeuroFoil — Flight Deck</title>
 <link rel="stylesheet" href="/static/styles.css">
+<script>
+window.__errs = [];
+window.addEventListener("error", (e) => window.__errs.push(`${e.message} @ ${e.filename}:${e.lineno}`));
+window.addEventListener("unhandledrejection", (e) => window.__errs.push(`rejection: ${e.reason}`));
+</script>
+<script type="importmap">
+{ "imports": { "three": "/static/vendor/three.module.js" } }
+</script>
 </head>
 <body>
 <header class="deck-head">
@@ -42,9 +50,7 @@
         <span class="ctl-name">Angle of attack <b id="v-alpha">+4.0°</b></span>
         <input type="range" id="in-alpha" min="-6" max="14" step="0.5" value="4">
       </label>
-      <label class="ctl">
-        <span class="ctl-name">Reynolds number</span>
-      </label>
+      <label class="ctl"><span class="ctl-name">Reynolds number</span></label>
       <div class="re-row" id="re-row"></div>
     </section>
 
@@ -61,6 +67,12 @@
       <div class="readout"><span class="ro-label">DRAG&nbsp;C<sub>D</sub></span><span class="ro-value" id="ro-cd">—</span><span class="ro-band" id="band-cd">—</span></div>
       <div class="readout"><span class="ro-label">PITCH&nbsp;C<sub>M</sub></span><span class="ro-value" id="ro-cm">—</span><span class="ro-band" id="band-cm">—</span></div>
       <div class="readout"><span class="ro-label">L/D</span><span class="ro-value" id="ro-ld">—</span><span class="ro-band ro-band-quiet">best guess</span></div>
+    </div>
+
+    <div class="hero3d">
+      <canvas id="wing-canvas"></canvas>
+      <div class="hero-hint">drag to orbit · scroll to zoom · morphs with the sliders</div>
+      <div class="hero-alpha" id="hero-alpha">α +4.0°</div>
     </div>
 
     <div class="cp-block">
@@ -130,6 +142,6 @@
   </aside>
 </main>
 
-<script src="/static/app.js"></script>
+<script type="module" src="/static/app.js"></script>
 </body>
 </html>

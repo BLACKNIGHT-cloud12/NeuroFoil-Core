@@ -225,3 +225,30 @@ input[type="range"]:focus-visible { outline: 1px solid var(--signal); }
 ::-webkit-scrollbar { width: 8px; }
 ::-webkit-scrollbar-thumb { background: var(--seam); border-radius: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
+
+/* ---------- 3D hero ---------- */
+.hero3d {
+  position: relative;
+  background: radial-gradient(ellipse at 62% 40%, rgba(42, 65, 95, 0.35), transparent 65%),
+              var(--panel);
+  border: 1px solid var(--seam-soft);
+  border-radius: 4px;
+  padding: 0;
+  margin-bottom: 12px;
+  height: 300px;
+  overflow: hidden;
+}
+#wing-canvas { width: 100%; height: 100%; display: block; cursor: grab; }
+#wing-canvas:active { cursor: grabbing; }
+.hero-hint {
+  position: absolute; right: 12px; bottom: 8px;
+  font-size: 10.5px; color: var(--muted); letter-spacing: 0.04em;
+  pointer-events: none;
+}
+.hero-alpha {
+  position: absolute; left: 14px; top: 10px;
+  font-family: var(--mono); font-size: 13px; color: var(--caution);
+  border: 1px solid rgba(255, 180, 84, 0.35); border-radius: 3px;
+  padding: 2px 9px; background: rgba(255, 180, 84, 0.07);
+  pointer-events: none;
+}
